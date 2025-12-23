@@ -834,7 +834,11 @@ class ProbModelPSsplit:
 Testing results
 """
 class TestingResults:
-    def __init__(self, truth, prob_model_output, num_pix = 40, delta_pix = 0.02):
+    def __init__(self, truth, prob_model_output, 
+                #  prior,
+                #  lens_prior,
+                #  phys_model,
+                 num_pix = 40, delta_pix = 0.02):
         self.truth = truth
         self.prob_model_output = prob_model_output
         self.recovered_x = None
@@ -844,6 +848,9 @@ class TestingResults:
         self.x_arcsec_recovered = None
         self.y_arcsec_recovered = None
 
+        # self.prior = prior
+        # self.lens_prior = lens_prior
+        # self.phys_model = phys_model
 
 
     def plot_loss_evolution(self, losses):
@@ -908,8 +915,6 @@ class TestingResults:
         '''
         x_arcsec, y_arcsec are observed positions
         '''
-
-
         #print("\nla mag del input", mag_sq_truth)
         self.x = tf.repeat(x_arcsec[..., tf.newaxis], [1], axis=-1)
         self.y = tf.repeat(y_arcsec[..., tf.newaxis], [1], axis=-1)
@@ -964,8 +969,6 @@ class TestingResults:
         gi_rec = tf.gather(det_sq, i, axis=0)
         gj_rec = tf.gather(det_sq, j, axis=0)
         '''
-        
-
 
 
     def magnification_error(self, observed_magnifications,):
@@ -982,7 +985,8 @@ class TestingResults:
 
 
 
-    def relens(self, x_arcsec, y_arcsec):
+    def relens(self, x_arcsec, y_arcsec,
+               prior, lens_prior, phys_model):
         #delta_pix = self.delta_pix
         supersample = 1
         #num_pix = self.num_pix
@@ -991,7 +995,6 @@ class TestingResults:
         example = lens_prior.sample(seed = 0)
         size = int(tf.size(tf.nest.flatten(example))) # type: ignore
 
-        kernel = np.load('/content/drive/MyDrive/point-source-updates/F475W-epsf.npy').astype(np.float32)
         sim_config = SimulatorConfig(delta_pix=self.delta_pix, num_pix=self.num_pix, supersample=supersample)
         lens_sim = LensSimulator(phys_model, sim_config, bs=1)
 
@@ -1083,7 +1086,10 @@ import corner
 # todo: show relative values
 
 class LensModelAnalysis:
-    def __init__(self, delta_pix, num_pix, truth_test, prob_model, prob_model_uniform, prior, observed_data = None, weight_dist =  1.*1e3, weight_flux = 1.*1e2, simulation = False, flux_ratios = False):
+    def __init__(self, delta_pix, num_pix, truth_test, prob_model, prob_model_uniform, prior,
+                 lens_prior, phys_model,
+                 observed_data = None, weight_dist =  1.*1e3, weight_flux = 1.*1e2, simulation = False,
+                 flux_ratios = False):
         self.simulation = simulation
         self.delta_pix = delta_pix
         self.num_pix = num_pix
@@ -1099,9 +1105,15 @@ class LensModelAnalysis:
         self.observed_data = observed_data # a list. the first sublist are observed positions, [[x] [y]]; the second are observed magnifications
         self.flux_ratios = flux_ratios
 
+        # fixes
+        self.lens_prior = lens_prior
+        self.phys_model = phys_model
 
 
-    def run_map(self, n_map = 4000, n_steps = 2000,):
+
+    def run_map(self, 
+                lens_sim,
+                n_map = 4000, n_steps = 2000,):
         if self.simulation:
             print("\nSimulated image and brightest points:\n")
             lens_omitted_img = lens_sim.simulate([self.truth_test[0], [], self.truth_test[2]])
@@ -1276,7 +1288,8 @@ class LensModelAnalysis:
         #test_results.calculate_relative_errors()
         test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
         ###test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec)
-        test_results.relens(self.x_arcsec, self.y_arcsec)
+        test_results.relens(self.x_arcsec, self.y_arcsec,
+                            self.prior, self.lens_prior, self.phys_model)
         test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec, self.observed_flux)
         test_results.magnification_error(observed_magnifications = self.observed_flux)
 
