@@ -9,9 +9,12 @@ __pycache__/
 
 # FITS images
 *.fits
+!modeling/2025wny/data/nirc2_wny_full.fits
 
 # numpy arrays
 *.npy
+!modeling/2025wny/data/nirc2_psf_stacked.npy
+!modeling/2025wny/data/nirc2_psf_psfr_stacked.npy
 
 # Pandas dataframes
 *.pkl
