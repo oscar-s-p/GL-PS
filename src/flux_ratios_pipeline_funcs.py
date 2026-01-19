@@ -34,6 +34,9 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
+
+print('flux_ratios_pipeline_funcs.py version 0.0')
+
 """
 Delensing functions
 """
