@@ -1153,7 +1153,11 @@ class LensModelAnalysis:
         #print("best GD format", self.best)
 
         prob_model_output = self.prob_model.bij.forward([self.best])[0]
-        print("\nBest parameters:\n", prob_model_output)
+        #print("\nBest parameters:\n", prob_model_output)
+        print("\nBest parameters:\n")
+        print(type(prob_model_output))
+        for el in prob_model_output:
+            print(el)
         test_results = TestingResults(self.truth_test, prob_model_output)
         test_results.plot_loss_evolution(losses)
         test_results.calculate_relative_errors()
