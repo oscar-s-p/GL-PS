@@ -885,7 +885,7 @@ class TestingResults:
         print("\nRelative errors:\n")
         for i, errors in enumerate(relative_errors_list):
             for key, error in errors.items():
-                print(f"{key}: {error:.2%}")
+                print(f"{key:<10}: {error:>6.2%}")
         print("\n")
 
     def display_delensed_positions(self, x_arcsec, y_arcsec, _beta_epl_shear):
@@ -1352,8 +1352,9 @@ class LensModelAnalysis:
                 numeric_value = tensor.numpy()[0]
                 if percentage:
                     print(init_s + f"{key}: {numeric_value:.2%}")
+                    print(f'{key:>{10}}:  {numeric_value:>{6}.2%}')
                 else:
-                    print(init_s + f"{key}: {numeric_value:.4e}")
-                    print(f'{key:<{10}}:  {numeric_value:>10}')
+                    #print(init_s + f"{key}: {numeric_value:.4e}")
+                    print(f'{key:>{10}}:  {numeric_value:>{10}.6f}')
                 init_s = '   '
 
