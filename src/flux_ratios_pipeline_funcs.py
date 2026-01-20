@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -1176,7 +1176,8 @@ class LensModelAnalysis:
         lps = prob_model_only_dist.log_prob(MAP_sample)
         best = MAP_sample[tf.argmax(lps)] # type: ignore
         prob_model_output_dist = self.prob_model_uniform.pack_bij.forward([best])[0]
-        print("\nBest parameters (only distance term):\n", prob_model_output_dist)
+        print("\nBest parameters (only distance term):")#\n", prob_model_output_dist)
+        self.print_formatted_values_extra(prob_model_output)
 
         test_results_dist = TestingResults(self.truth_test, prob_model_output_dist)
         test_results_dist.calculate_relative_errors()
@@ -1265,9 +1266,12 @@ class LensModelAnalysis:
         median_list = tf.convert_to_tensor(median_list)
 
 
-        print("Parameter Means and Medians:")
+        #print("Parameter Means and Medians:")
+        print(f"{'Parameter':<10} | {'Mean':>8} | {'Median':>8}")
+        print("-" * 32)
         for param_name in parameter_names:
-            print(f"{param_name}: mean = {mean_values[param_name]:.3f}, median = {median_values[param_name]:.3f}")
+            #print(f"{param_name}: mean = {mean_values[param_name]:.3f}, median = {median_values[param_name]:.3f}")
+            print(f"{param_name:<10} | {mean_values[param_name]:>8.4f} | {median_values[param_name]:>8.4f}")
 
 
         dict1_keys = {'theta_E', 'gamma', 'e1', 'e2', 'center_x', 'center_y'}
@@ -1343,7 +1347,10 @@ class LensModelAnalysis:
         for index, param_dict in enumerate(output):
             for key, tensor in param_dict.items():
                 numeric_value = tensor.numpy()[0]
-                print(f"{key}: {numeric_value:.6f}")
+                if variable=="rhat":
+                    print(f"{key:<{10}}: {numeric_value:>{10}.6f}")
+                else: 
+                    print(f"{key:<{10}}: {numeric_value:>{10}.1f}")
 
     def print_formatted_values_extra(self, output, percentage = False):
         for index, param_dict in enumerate(output):
