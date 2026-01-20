@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.0.7"
+__version__ = "0.0.8"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -1021,8 +1021,8 @@ class TestingResults:
         x = tf.repeat(self.x_arcsec_recovered[..., tf.newaxis], [chains], axis=-1)
         y = tf.repeat(self.y_arcsec_recovered[..., tf.newaxis], [chains], axis=-1)
         print("Brighest points reshaped into x, y:")
-        print("\nx:", x)
-        print("\ny:", y)
+        print("\nx:", x.numpy())
+        print("\ny:", y.numpy())
 
         # truth
 
@@ -1033,7 +1033,8 @@ class TestingResults:
 
         params = self.prob_model_output
 
-        print("\nparams", params)
+        # print("\nparams")
+        # print_formatted_dict(params, percentage=False)
 
         kwargs_main_lens = {
             'theta_E': params[0]['theta_E'].numpy()[0],
@@ -1051,7 +1052,7 @@ class TestingResults:
         print("Kwargs lens")
         print_formatted_dict(kwargs_lens, percentage=False)
 
-
+        # plotting with Lenstronomy
         lens_model = LensModel(lens_model_list=['EPL', 'SHEAR'])
         fig, axes = plt.subplots(figsize=(12, 12))
         extent = [-self.num_pix / 2 * self.delta_pix, self.num_pix / 2 * self.delta_pix, - self.num_pix / 2 * self.delta_pix, self.num_pix / 2 * self.delta_pix]
@@ -1059,11 +1060,11 @@ class TestingResults:
         lens_plot.lens_model_plot(axes, lensModel=lens_model, kwargs_lens=kwargs_lens, numPix=self.num_pix, deltaPix=self.delta_pix,
                                   sourcePos_x=self.recovered_x, sourcePos_y=self.recovered_y, point_source=True, with_caustics=True, # type: ignore
                                   fast_caustic=False, coord_inverse=True) 
-        axes.imshow(lens_omitted_img, origin='lower', vmin=0, vmax=10, extent=extent) # type: ignore
+        #axes.imshow(lens_omitted_img, origin='lower', vmin=0, vmax=10, extent=extent) # type: ignore
         axes.plot(x_arcsec, y_arcsec, '.', color="blue", ms=15, label = "observed positions")
         axes.plot(self.x_arcsec_recovered, self.y_arcsec_recovered, '.', color = "red", ms = 15, label = "recovered positions")
         #axes.plot(self.truth[2][0]['center_x'], self.truth[2][0]['center_y'], ".", color="yellow", ms=15)
-        axes.plot(self.recovered_x, self.recovered_y, ".", color="yellow", ms=15, label = "recovered source") #type: ignore
+        axes.plot(self.recovered_x, self.recovered_y, ".", color="yellow", ms=15, label = "recovered source", alpha=0.5) #type: ignore
         for text in axes.texts:
           text.set_color('white')
 
@@ -1382,7 +1383,7 @@ def print_formatted_dict(output, percentage = False):
                 else: numeric_value = tensor
                 if percentage:
                     #print(init_s + f"{key}: {numeric_value:.2%}")
-                    print(init_s + f'{key:<{10}}:  {numeric_value:>{6}.2%}')
+                    print(init_s + f'{key:<{10}}:  {numeric_value:>{8}.2f}%')
                 else:
                     #print(init_s + f"{key}: {numeric_value:.4e}")
                     print(init_s + f'{key:<{10}}:  {numeric_value:>{10}.6f}')
