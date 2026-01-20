@@ -1345,11 +1345,13 @@ class LensModelAnalysis:
                 numeric_value = tensor.numpy()[0]
                 print(f"{key}: {numeric_value:.6f}")
 
-    def print_formatted_values_extra(self, output):
+    def print_formatted_values_extra(self, output, percentage = False):
+        if percentage: last_s = " %"
+        else: last_s = ""
         for index, param_dict in enumerate(output):
             init_s = ' - '
             for key, tensor in param_dict.items():
                 numeric_value = tensor.numpy()[0]
-                print(init_s + f"{key}: {numeric_value:.4e}")
+                print(init_s + f"{key}: {numeric_value:.4e}" + last_s)
                 init_s = '   '
 
