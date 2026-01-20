@@ -1157,7 +1157,7 @@ class LensModelAnalysis:
 
         prob_model_output = self.prob_model.bij.forward([self.best])[0]
         #print("\nBest parameters:\n", prob_model_output)
-        print("\nBest parameters:\n")
+        print("\nBest parameters:")
         self.print_formatted_values_extra(prob_model_output)
 
         test_results = TestingResults(self.truth_test, prob_model_output)
@@ -1347,7 +1347,9 @@ class LensModelAnalysis:
 
     def print_formatted_values_extra(self, output):
         for index, param_dict in enumerate(output):
+            init_s = ' - '
             for key, tensor in param_dict.items():
                 numeric_value = tensor.numpy()[0]
-                print(f"{key}: {numeric_value:.4e}")
+                print(init_s + f"{key}: {numeric_value:.4e}")
+                init_s = '   '
 
