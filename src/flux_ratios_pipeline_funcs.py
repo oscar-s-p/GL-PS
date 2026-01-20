@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -1346,12 +1346,14 @@ class LensModelAnalysis:
                 print(f"{key}: {numeric_value:.6f}")
 
     def print_formatted_values_extra(self, output, percentage = False):
-        if percentage: last_s = " %"
-        else: last_s = ""
         for index, param_dict in enumerate(output):
             init_s = ' - '
             for key, tensor in param_dict.items():
                 numeric_value = tensor.numpy()[0]
-                print(init_s + f"{key}: {numeric_value:.4e}" + last_s)
+                if percentage:
+                    print(init_s + f"{key}: {numeric_value:.2%}")
+                else:
+                    print(init_s + f"{key}: {numeric_value:.4e}")
+                    print(f'{key:<{10}}:  {numeric_value:>10}')
                 init_s = '   '
 
