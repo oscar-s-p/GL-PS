@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -885,7 +885,7 @@ class TestingResults:
         print("\nRelative errors:\n")
         for i, errors in enumerate(relative_errors_list):
             for key, error in errors.items():
-                print(f"{key:<10}: {error:>6.2%}")
+                print(f"{key:<10}: {error:>8.2%}")
         print("\n")
 
     def display_delensed_positions(self, x_arcsec, y_arcsec, _beta_epl_shear):
@@ -1002,16 +1002,19 @@ class TestingResults:
         lens_sim = LensSimulator(phys_model, sim_config, bs=1)
 
 
-        print("self.prob_model_output", self.prob_model_output)
+        #print("self.prob_model_output", self.prob_model_output)
+        print("self.prob_model_output")
+        print_formatted_dict(self.prob_model_output, percentage=False)
         lens_omitted_img = lens_sim.simulate([self.prob_model_output,[],[{"center_x": self.recovered_x, "center_y": self.recovered_y, 'Ie': 2815.97}]]) # Omit lens light
         converter = BrightestPoints(number_of_images = 4, num_pixels=self.num_pix, grid_size=50, delta_pix=self.delta_pix, supersample=1)
-        plt.imshow(lens_omitted_img) # type: ignore
-        plt.show()
-        print(lens_omitted_img)
+        plt.imshow(lens_omitted_img, origin = 'lower', norm='log') # type: ignore
+        plt.title("Relensed image from recovered parameters and select brightest points")
+        #print(lens_omitted_img)
         brightest_pix_recovered = converter.find_brightest_points(lens_omitted_img)
-        #plt.plot(brightest_pixels[:, 1], brightest_pixels[:, 0], ".", ms = 15, color = "dodgerblue", alpha = 0.6, label = "brighest points")
+        plt.plot(brightest_pix_recovered[:, 1], brightest_pix_recovered[:, 0], ".", ms = 15, color = "dodgerblue", alpha = 0.6, label = "brighest points")  # type: ignore
         plt.title("selected brightest points")
         plt.legend()
+        plt.show()
         self.x_arcsec_recovered, self.y_arcsec_recovered = converter.pix_to_arcsec(brightest_pix_recovered)
         chains = 1
         x = tf.repeat(self.x_arcsec_recovered[..., tf.newaxis], [chains], axis=-1)
@@ -1043,7 +1046,10 @@ class TestingResults:
             'gamma2': params[1]['gamma2'].numpy()[0],
         }
         kwargs_lens = [kwargs_main_lens, kwargs_shear]
-        print("\nkwargs_lens", kwargs_lens)
+        #print("\nkwargs_lens", kwargs_lens)
+        print("Kwargs lens")
+        print_formatted_dict(kwargs_lens, percentage=False)
+
 
         lens_model = LensModel(lens_model_list=['EPL', 'SHEAR'])
         fig, axes = plt.subplots(figsize=(12, 12))
@@ -1362,6 +1368,20 @@ class LensModelAnalysis:
                     print(f'{key:>{10}}:  {numeric_value:>{6}.2%}')
                 else:
                     #print(init_s + f"{key}: {numeric_value:.4e}")
-                    print(f'{key:>{10}}:  {numeric_value:>{10}.6f}')
+                    print(init_s + f'{key:<{10}}:  {numeric_value:>{10}.6f}')
                 init_s = '   '
 
+def print_formatted_dict(output, percentage = False):
+        if type(output) != list:
+            output = [output]
+        for index, param_dict in enumerate(output):
+            init_s = ' - '
+            for key, tensor in param_dict.items():
+                numeric_value = tensor.numpy()[0]
+                if percentage:
+                    #print(init_s + f"{key}: {numeric_value:.2%}")
+                    print(init_s + f'{key:<{10}}:  {numeric_value:>{6}.2%}')
+                else:
+                    #print(init_s + f"{key}: {numeric_value:.4e}")
+                    print(init_s + f'{key:<{10}}:  {numeric_value:>{10}.6f}')
+                init_s = '   '
