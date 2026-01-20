@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.0"
+__version__ = "0.0.1"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -1158,9 +1158,8 @@ class LensModelAnalysis:
         prob_model_output = self.prob_model.bij.forward([self.best])[0]
         #print("\nBest parameters:\n", prob_model_output)
         print("\nBest parameters:\n")
-        print(type(prob_model_output))
-        for el in prob_model_output:
-            print(el)
+        self.print_formatted_values_extra(prob_model_output)
+
         test_results = TestingResults(self.truth_test, prob_model_output)
         test_results.plot_loss_evolution(losses)
         test_results.calculate_relative_errors()
@@ -1345,4 +1344,10 @@ class LensModelAnalysis:
             for key, tensor in param_dict.items():
                 numeric_value = tensor.numpy()[0]
                 print(f"{key}: {numeric_value:.6f}")
+
+    def print_formatted_values_extra(self, output):
+        for index, param_dict in enumerate(output):
+            for key, tensor in param_dict.items():
+                numeric_value = tensor.numpy()[0]
+                print(f"{key}: {numeric_value:.4e}")
 
