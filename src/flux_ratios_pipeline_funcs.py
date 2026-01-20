@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -882,10 +882,11 @@ class TestingResults:
                     relative_errors[key] = float('inf')
             relative_errors_list.append(relative_errors)
 
-        print("\nRelative errors:\n")
-        for i, errors in enumerate(relative_errors_list):
-            for key, error in errors.items():
-                print(f"{key:<10}: {error:>8.2%}")
+        print("\nRelative errors:")
+        print_formatted_dict(relative_errors_list, percentage=True)
+        # for i, errors in enumerate(relative_errors_list):
+        #     for key, error in errors.items():
+        #         print(f"{key:<10}: {error:>8.2%}")
         print("\n")
 
     def display_delensed_positions(self, x_arcsec, y_arcsec, _beta_epl_shear):
@@ -1377,7 +1378,8 @@ def print_formatted_dict(output, percentage = False):
         for index, param_dict in enumerate(output):
             init_s = ' - '
             for key, tensor in param_dict.items():
-                numeric_value = tensor.numpy()[0]
+                if isinstance(tensor, tf.Tensor): numeric_value = tensor.numpy()[0] # type: ignore
+                else: numeric_value = tensor
                 if percentage:
                     #print(init_s + f"{key}: {numeric_value:.2%}")
                     print(init_s + f'{key:<{10}}:  {numeric_value:>{6}.2%}')
