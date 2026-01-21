@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.0.8"
+__version__ = "0.0.9"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -946,15 +946,15 @@ class TestingResults:
         gi = tf.gather(det_sq, i, axis=0)
         gj = tf.gather(det_sq, j, axis=0)
         loss_terms = tf.abs(gj - gi * ratios_truth)
-        print("\nloss terms (in observed positions):", loss_terms)
+        print("\nloss terms (in observed positions):", loss_terms.numpy())
         recovered_ratios = gj/gi
         #print("\nis j/i. j:", j)
         #print("\nis j/i. i:", i)
         #print("\nratios truth:", ratios_truth)
         #print("\nmag_sq_truth:", mag_sq_truth)
 
-        print("\nflux ratios observed:", ratios_truth)
-        print("\nflux ratios recovered (in observed positions):", gj/gi)
+        print("\nflux ratios observed:", ratios_truth.numpy())
+        print("\nflux ratios recovered (in observed positions):", (gj/gi).numpy())
         rel_error = tf.abs(recovered_ratios-ratios_truth)*100/ratios_truth
 
         def disp_flux_error(i, j, ratios, errors):
@@ -962,7 +962,7 @@ class TestingResults:
                 ratio_desc = f"flux{int(i[idx])+1}/flux{int(j[idx])+1}"
                 print(f"{ratio_desc}: {errors[idx][0]:.2f}%")
 
-        #print("\nrelative errors (in observed positions):")
+        print("\nrelative errors (in observed positions):")
         disp_flux_error(i, j, ratios_truth, rel_error)
 
         # flux ratios recovered in recovered positions
@@ -1060,7 +1060,7 @@ class TestingResults:
         lens_plot.lens_model_plot(axes, lensModel=lens_model, kwargs_lens=kwargs_lens, numPix=self.num_pix, deltaPix=self.delta_pix,
                                   sourcePos_x=self.recovered_x, sourcePos_y=self.recovered_y, point_source=True, with_caustics=True, # type: ignore
                                   fast_caustic=False, coord_inverse=True) 
-        #axes.imshow(lens_omitted_img, origin='lower', vmin=0, vmax=10, extent=extent) # type: ignore
+        axes.imshow(lens_omitted_img, origin='lower', vmin=0, vmax=10, extent=extent) # type: ignore
         axes.plot(x_arcsec, y_arcsec, '.', color="blue", ms=15, label = "observed positions")
         axes.plot(self.x_arcsec_recovered, self.y_arcsec_recovered, '.', color = "red", ms = 15, label = "recovered positions")
         #axes.plot(self.truth[2][0]['center_x'], self.truth[2][0]['center_y'], ".", color="yellow", ms=15)
@@ -1073,10 +1073,10 @@ class TestingResults:
         axes.invert_yaxis()
 
         for line in axes.lines:
-           if line.get_marker() == 'd':
-            line.set_markerfacecolor('lightgray')
-            line.set_markeredgecolor('gray')
-            line.set_alpha(0.5)
+            if line.get_marker() == 'd':
+                line.set_markerfacecolor('lightgray')
+                line.set_markeredgecolor('gray')
+                line.set_alpha(0.5)
 
         plt.show()
 
