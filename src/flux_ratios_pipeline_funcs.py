@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.0.9"
+__version__ = "0.1.0"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -946,15 +946,15 @@ class TestingResults:
         gi = tf.gather(det_sq, i, axis=0)
         gj = tf.gather(det_sq, j, axis=0)
         loss_terms = tf.abs(gj - gi * ratios_truth)
-        print("\nloss terms (in observed positions):", loss_terms.numpy())
+        print("\nloss terms (in observed positions):\n", loss_terms.numpy())
         recovered_ratios = gj/gi
         #print("\nis j/i. j:", j)
         #print("\nis j/i. i:", i)
         #print("\nratios truth:", ratios_truth)
         #print("\nmag_sq_truth:", mag_sq_truth)
 
-        print("\nflux ratios observed:", ratios_truth.numpy())
-        print("\nflux ratios recovered (in observed positions):", (gj/gi).numpy())
+        print("\nflux ratios observed:\n", ratios_truth.numpy())
+        print("\nflux ratios recovered (in observed positions):\n", (gj/gi).numpy())
         rel_error = tf.abs(recovered_ratios-ratios_truth)*100/ratios_truth
 
         def disp_flux_error(i, j, ratios, errors):
@@ -982,10 +982,10 @@ class TestingResults:
         x_rec = tf.repeat(self.x_arcsec_recovered[..., tf.newaxis], [1], axis=-1) # type: ignore
         y_rec = tf.repeat(self.y_arcsec_recovered[..., tf.newaxis], [1], axis=-1) # type: ignore
         predicted_mag_rec = magnification(x_rec, y_rec, [self.prob_model_output])
-        print("\nPredicted magnifications (in recovered positions). The ordering may have changed:", predicted_mag_rec)
+        print("\nPredicted magnifications (in recovered positions). The ordering may have changed:\n", predicted_mag_rec.numpy()) # type: ignore
 
         predicted_mag = magnification(self.x, self.y, [self.prob_model_output])
-        print("\nPredicted magnifications (in observed positions):", predicted_mag)
+        print("\nPredicted magnifications (in observed positions):\n", predicted_mag.numpy()) # type: ignore
 
 
 
