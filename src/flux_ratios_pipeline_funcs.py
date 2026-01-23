@@ -1179,8 +1179,8 @@ class LensModelAnalysis:
         self.print_formatted_values_extra(prob_model_output)
 
         test_results = TestingResults(self.truth_test, prob_model_output)
-        test_results.plot_loss_evolution(losses)
         test_results.calculate_relative_errors()
+        test_results.plot_loss_evolution(losses)
         test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
         ### test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec)
 
@@ -1198,9 +1198,10 @@ class LensModelAnalysis:
         best = MAP_sample[tf.argmax(lps)] # type: ignore
         prob_model_output_dist = self.prob_model_uniform.pack_bij.forward([best])[0]
         print("\nBest parameters (only distance term):")#\n", prob_model_output_dist)
-        self.print_formatted_values_extra(prob_model_output)
+        self.print_formatted_values_extra(prob_model_output_dist)
 
         test_results_dist = TestingResults(self.truth_test, prob_model_output_dist)
+        test_results_dist.plot_loss_evolution(losses)
         test_results_dist.calculate_relative_errors()
         test_results_dist.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
         ### test_results_dist.flux_ratio_error(self.x_arcsec, self.y_arcsec)
