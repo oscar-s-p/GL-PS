@@ -1,23 +1,26 @@
 import gigalens
-from gigalens.jax.inference import ModellingSequence
-from gigalens.jax.model import ForwardProbModel, BackwardProbModel
+#from gigalens.jax.inference import ModellingSequence
+#from gigalens.jax.model import ForwardProbModel, BackwardProbModel
 from gigalens.model import PhysicalModel
-from gigalens.jax.simulator import LensSimulator
 from gigalens.simulator import SimulatorConfig
-from gigalens.jax.profiles.light import sersic, shapelets
+from gigalens.jax.simulator import LensSimulator
+from gigalens.jax.profiles.light import sersic #, shapelets
 from gigalens.jax.profiles.mass import epl, shear
+# from gigalens.tf.simulator import LensSimulator
+# from gigalens.tf.profiles.light import sersic, shapelets
+# from gigalens.tf.profiles.mass import epl, shear
 import lenstronomy
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.Plots import lens_plot
-import tensorflow_probability.substrates.jax as tfp
-import jax
-from jax import random
+#import tensorflow_probability.substrates.jax as tfp
+#import jax
+#from jax import random
 import numpy as np
-import optax
-from jax import numpy as jnp
+#import optax
+#from jax import numpy as jnp
 from matplotlib import pyplot as plt
 
-tfd = tfp.distributions
+#tfd = tfp.distributions
 
 import lenstronomy
 import copy
@@ -183,7 +186,14 @@ def image_sim(theta_E, q, phi,lens_z,lra,ldec,source_z, sra,sdec,lens_light, gam
       'center_x': sra, 
       'center_y': sdec, 
       'Ie': kwargs_source_i[0]['amp'] + kwargs_source_g[0]['amp'] + kwargs_source_r[0]['amp']}])
-
+    
+    """
+    for l in params:           # iterate list inside the tuple
+        for l2 in l:
+            for k, v in l2.items():
+                l2[k] = np.float64(v)          # cast every value to float64
+                print(k, type(l2[k]), l2[k])
+    """
 
     image_b = imSim_b.image(kwargs_lens, kwargs_source_g, kwargs_lens_light_g, kwargs_ps_g,lens_light_add=lens_light,source_add=source_light,point_source_add=source_light)
     image_g = imSim_g.image(kwargs_lens, kwargs_source_r, kwargs_lens_light_r, kwargs_ps_r,lens_light_add=lens_light,source_add=source_light,point_source_add=source_light)
@@ -208,7 +218,8 @@ def image_sim(theta_E, q, phi,lens_z,lra,ldec,source_z, sra,sdec,lens_light, gam
     # Robust way to get the path relative to this file
     # base_path = Path(__file__).parent.parent  # adjust as needed
     # psf_path = base_path / 'gigalens' / 'src' / 'gigalens' / 'assets' / 'psf.npy'
-    kernel = np.load('gigalens/src/gigalens/assets/psf.npy').astype(np.float32)
+    psf_path = '/Users/oscar/LB/grav_lens/gigalens/src/gigalens/assets/psf.npy'
+    kernel = np.load(psf_path).astype(np.float32)
     phys_model = PhysicalModel([epl.EPL(50), shear.Shear()], [sersic.SersicEllipse(use_lstsq=False)], [sersic.SersicEllipse(use_lstsq=False)])
     sim_config = SimulatorConfig(delta_pix=deltaPix, num_pix=numpix, supersample=1, kernel=kernel)
     lens_sim = LensSimulator(phys_model, sim_config, bs=1)

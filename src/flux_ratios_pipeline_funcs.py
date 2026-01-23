@@ -1379,7 +1379,10 @@ def print_formatted_dict(output, percentage = False):
         for index, param_dict in enumerate(output):
             init_s = ' - '
             for key, tensor in param_dict.items():
-                if isinstance(tensor, tf.Tensor): numeric_value = tensor.numpy()[0] # type: ignore
+                if isinstance(tensor, tf.Tensor): 
+                    numeric_value = tensor.numpy() # type: ignore
+                    if numeric_value.shape != ():
+                        numeric_value = numeric_value[0]
                 else: numeric_value = tensor
                 if percentage:
                     #print(init_s + f"{key}: {numeric_value:.2%}")
