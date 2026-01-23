@@ -990,14 +990,16 @@ class TestingResults:
 
 
     def relens(self, x_arcsec, y_arcsec,
-               prior, lens_prior, phys_model):
+               prior, 
+               #lens_prior, 
+               phys_model):
         #delta_pix = self.delta_pix
         supersample = 1
         #num_pix = self.num_pix
 
-        prob_model = ForwardProbModel(prior, 0, background_rms=0.2, exp_time=100)
-        example = lens_prior.sample(seed = 0)
-        size = int(tf.size(tf.nest.flatten(example))) # type: ignore
+        #prob_model = ForwardProbModel(prior, 0, background_rms=0.2, exp_time=100)
+        #example = lens_prior.sample(seed = 0)
+        #size = int(tf.size(tf.nest.flatten(example))) # type: ignore
 
         sim_config = SimulatorConfig(delta_pix=self.delta_pix, num_pix=self.num_pix, supersample=supersample)
         lens_sim = LensSimulator(phys_model, sim_config, bs=1)
@@ -1098,7 +1100,8 @@ import corner
 
 class LensModelAnalysis:
     def __init__(self, delta_pix, num_pix, truth_test, prob_model, prob_model_uniform, prior,
-                 lens_prior, phys_model,
+                 #lens_prior, 
+                 phys_model,
                  observed_data = None, weight_dist =  1.*1e3, weight_flux = 1.*1e2, simulation = False,
                  flux_ratios = False):
         self.simulation = simulation
@@ -1117,7 +1120,7 @@ class LensModelAnalysis:
         self.flux_ratios = flux_ratios
 
         # fixes
-        self.lens_prior = lens_prior
+        #self.lens_prior = lens_prior
         self.phys_model = phys_model
 
 
@@ -1307,7 +1310,9 @@ class LensModelAnalysis:
         test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
         ###test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec)
         test_results.relens(self.x_arcsec, self.y_arcsec,
-                            self.prior, self.lens_prior, self.phys_model)
+                            self.prior, 
+                            #self.lens_prior, 
+                            self.phys_model)
         test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec, self.observed_flux)
         test_results.magnification_error(observed_magnifications = self.observed_flux)
 
