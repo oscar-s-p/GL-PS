@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -1227,18 +1227,19 @@ class LensModelAnalysis:
         plt.show()
 
 
-    def run_hmc(self, n_hmc = 50, num_burnin_steps = 100, num_results = 750, method = "adaptative"):
+    def run_hmc(self, n_hmc = 50, num_burnin_steps = 100, num_results = 750, method = "adaptative",
+                init_eps = 0.5, init_l = 3, max_leapfrog_steps = 100):
         if method == "adaptative":
             prob_model_ps = ProbModelPS(weight_dist = self.weight_dist, weight_flux = self.weight_flux, truth = self.truth_test, 
                                         x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model, 
                                         prior = self.prior, observed_flux = self.observed_flux, flux_ratios = self.flux_ratios)
-            samples = HMC(q_z=self.q_z, n_hmc=n_hmc, init_eps=0.5, init_l=3, max_leapfrog_steps=100, 
+            samples = HMC(q_z=self.q_z, n_hmc=n_hmc, init_eps=init_eps, init_l=init_l, max_leapfrog_steps=max_leapfrog_steps,
                           num_burnin_steps=num_burnin_steps, num_results=num_results, prob_model_ps = prob_model_ps)
 
         if method == "nuts":
             prob_model_ps = ProbModelPS(weight_dist = self.weight_dist, weight_flux = self.weight_flux, truth = self.truth_test, 
                                         x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model, prior = self.prior)
-            samples = HMC_nuts(q_z=self.q_z, n_hmc=n_hmc, init_eps=0.5, init_l=3, max_leapfrog_steps=100, num_burnin_steps=num_burnin_steps, 
+            samples = HMC_nuts(q_z=self.q_z, n_hmc=n_hmc, init_eps=init_eps, init_l=init_l, max_leapfrog_steps=max_leapfrog_steps, num_burnin_steps=num_burnin_steps, 
                                num_results=num_results, prob_model_ps = prob_model_ps)
 
         print(f"\n----------------method: {method}------------------\n")
