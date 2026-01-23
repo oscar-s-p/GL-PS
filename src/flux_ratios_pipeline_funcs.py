@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -1127,7 +1127,9 @@ class LensModelAnalysis:
 
     def run_map(self, 
                 lens_sim = None,
-                n_map = 4000, n_steps = 2000,):
+                n_map = 4000, n_steps = 2000,
+                polynomial_decay_args = {'initial_learning_rate': 1e-1, #'decay_steps': 2000, 
+                                          'end_learning_rate': 1e-2/5, 'power': 1.0}):
         if self.simulation:
             if lens_sim is None:
                 raise ValueError("For simulation mode, lens_sim must be provided.")
@@ -1160,7 +1162,10 @@ class LensModelAnalysis:
         prob_model_ps = ProbModelPS(weight_dist = self.weight_dist, weight_flux = self.weight_flux, truth = self.truth_test, 
                                     x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model, 
                                     prior = self.prior, observed_flux = self.observed_flux, flux_ratios = self.flux_ratios)
-        schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(1e-1, n_steps, 1e-2/5) # type: ignore
+        schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(polynomial_decay_args['initial_learning_rate'], # type: ignore
+                                                                    n_steps, 
+                                                                    polynomial_decay_args['end_learning_rate'],
+                                                                    polynomial_decay_args['power'])
         optimizer = tf.keras.optimizers.Adam(schedule_fn) # type: ignore
         MAP_sample, losses = MAP(posterior_version = "total", optimizer=optimizer, n_samples=n_map, num_steps=n_steps, seed=0, 
                                  prob_model_ps = prob_model_ps, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform)
@@ -1182,7 +1187,10 @@ class LensModelAnalysis:
         # check gamma value when only the distance term is included with no prior
         print("\nresults when only the distance term is included in the loss with no prior --------------------------------------------------\n")
         prob_model_only_dist = ProbModelPS_only_dist(x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model_uniform,)
-        schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(1e-1, n_steps, 1e-2/5) # type: ignore
+        schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(polynomial_decay_args['initial_learning_rate'], # type: ignore
+                                                                    n_steps, 
+                                                                    polynomial_decay_args['end_learning_rate'],
+                                                                    polynomial_decay_args['power']) 
         optimizer = tf.keras.optimizers.Adam(schedule_fn) # type: ignore
         MAP_sample, losses = MAP(posterior_version = "only_dist", optimizer=optimizer, n_samples=n_map, num_steps=n_steps, seed=0, 
                                  prob_model_ps = prob_model_only_dist, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform)
@@ -1198,12 +1206,18 @@ class LensModelAnalysis:
         ### test_results_dist.flux_ratio_error(self.x_arcsec, self.y_arcsec)
 
 
-    def run_vi(self, n_vi = 500, num_steps = 600):
+    def run_vi(self, n_vi = 500, num_steps = 600,
+               polynomial_decay_args = {'initial_learning_rate': 0, 
+                                        'end_learning_rate': 4e-2, 
+                                        'power': 1.0}):
         prob_model_ps = ProbModelPS(weight_dist = self.weight_dist, weight_flux = self.weight_flux, truth = self.truth_test, 
                                     x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model, 
                                     prior = self.prior, observed_flux = self.observed_flux, flux_ratios = self.flux_ratios)
         # TODO: CHECK POSSIBLE ERROR below set not function
-        schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(0.0, 500, 4e-2, 1.0) # type: ignore
+        schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(polynomial_decay_args['initial_learning_rate'], # type: ignore
+                                                                    num_steps, 
+                                                                    polynomial_decay_args['end_learning_rate'], 
+                                                                    polynomial_decay_args['power']) 
         optimizer = tf.keras.optimizers.Adam(schedule_fn) # type: ignore
         self.q_z, losses_vi = SVI(optimizer=optimizer, start=self.best, n_vi=n_vi, num_steps=num_steps, prob_model_ps = prob_model_ps)
 
