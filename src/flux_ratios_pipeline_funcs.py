@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -1126,9 +1126,11 @@ class LensModelAnalysis:
 
 
     def run_map(self, 
-                lens_sim,
+                lens_sim = None,
                 n_map = 4000, n_steps = 2000,):
         if self.simulation:
+            if lens_sim is None:
+                raise ValueError("For simulation mode, lens_sim must be provided.")
             print("\nSimulated image and brightest points:\n")
             lens_omitted_img = lens_sim.simulate([self.truth_test[0], [], self.truth_test[2]])
             converter = BrightestPoints(number_of_images=4, num_pixels=self.num_pix, grid_size=20, delta_pix=self.delta_pix, supersample=1) # 40
