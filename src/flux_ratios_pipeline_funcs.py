@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.1.5"
+__version__ = "0.1.6"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
