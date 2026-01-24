@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.1.9"
+__version__ = "0.1.10"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -1223,7 +1223,7 @@ class LensModelAnalysis:
         self.q_z, losses_vi = SVI(optimizer=optimizer, start=self.best, n_vi=n_vi, num_steps=num_steps, prob_model_ps = prob_model_ps)
 
         plt.plot(losses_vi)
-        plt.title("ELBO loss")
+        plt.title("ELBO loss | w_d = %.1e, w_f = %.1e" % (self.weight_dist, self.weight_flux))
         plt.grid(True)
         plt.show()
 
