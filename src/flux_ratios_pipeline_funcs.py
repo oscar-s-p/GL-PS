@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -865,8 +865,7 @@ class TestingResults:
         plt.title('loss evolution')
         plt.xlabel('step')
         plt.ylabel('loss')
-        print(np.max(losses_np[:,:10]))
-        if np.max(losses_np[:,:10]) > 1000:
+        if np.nanmax(losses_np[:,:10]) > 1000:
             plt.ylim([0, 1000])
         plt.show()
 
