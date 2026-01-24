@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -865,7 +865,8 @@ class TestingResults:
         plt.title('loss evolution')
         plt.xlabel('step')
         plt.ylabel('loss')
-        plt.ylim([0, 1000])
+        if np.max(losses_np[:,:10]) > 1000:
+            plt.ylim([0, 1000])
         plt.show()
 
     def calculate_relative_errors(self):
@@ -884,9 +885,6 @@ class TestingResults:
 
         print("\nRelative errors:")
         print_formatted_dict(relative_errors_list, percentage=True)
-        # for i, errors in enumerate(relative_errors_list):
-        #     for key, error in errors.items():
-        #         print(f"{key:<10}: {error:>8.2%}")
         print("\n")
 
     def display_delensed_positions(self, x_arcsec, y_arcsec, _beta_epl_shear):
@@ -1179,7 +1177,8 @@ class LensModelAnalysis:
         self.print_formatted_values_extra(prob_model_output)
 
         test_results = TestingResults(self.truth_test, prob_model_output)
-        test_results.calculate_relative_errors()
+        if self.simulation:
+            test_results.calculate_relative_errors()
         test_results.plot_loss_evolution(losses)
         test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
         ### test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec)
@@ -1202,7 +1201,8 @@ class LensModelAnalysis:
 
         test_results_dist = TestingResults(self.truth_test, prob_model_output_dist)
         test_results_dist.plot_loss_evolution(losses)
-        test_results_dist.calculate_relative_errors()
+        if self.simulation:
+            test_results_dist.calculate_relative_errors()
         test_results_dist.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
         ### test_results_dist.flux_ratio_error(self.x_arcsec, self.y_arcsec)
 
@@ -1324,7 +1324,8 @@ class LensModelAnalysis:
 
         #print("\nmedian hmc:\n", median_hmc_output)
         test_results = TestingResults(self.truth_test, median_hmc_output, num_pix = self.num_pix, delta_pix = self.delta_pix)
-        #test_results.calculate_relative_errors()
+        if self.simulation:
+            test_results.calculate_relative_errors()
         test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
         ###test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec)
         test_results.relens(self.x_arcsec, self.y_arcsec,
