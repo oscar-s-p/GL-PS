@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -887,15 +887,23 @@ class TestingResults:
         # self.phys_model = phys_model
 
 
-    def plot_loss_evolution(self, losses):
+    def plot_loss_evolution(self, losses, track_loss_all=False):
         losses_np = losses.numpy()
+        if type(track_loss_all)!= bool:
+            losses_all_np = [track_loss_all[i].numpy() for i in range(4)]
+        linestyles = [(0, (3, 5, 1, 5, 1, 5)), '--', '-.', ':']
+        labels = ['distance loss', 'flux loss', 'prior loss', 'jacobian loss']
         plt.figure(figsize=(6, 6))
         for i in range(10):
-            plt.plot(losses_np[:, i], label=f'walker {i+1}')
+            plt.plot(losses_np[:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i))
+            if type(track_loss_all)!= bool:
+                for j in range(4):
+                    plt.plot(losses_all_np[j][:,i], label=f'{i+1} %s'%labels[j], linestyle=linestyles[j], color = plt.get_cmap('tab10')(i))
 
         plt.title('loss evolution')
         plt.xlabel('step')
         plt.ylabel('loss')
+        plt.legend()
         if np.nanmax(losses_np[:,:10]) > 1000:
             plt.ylim([0, 1000])
         plt.show()
@@ -1204,6 +1212,7 @@ class LensModelAnalysis:
             MAP_sample, losses = MAP(posterior_version = "total", optimizer=optimizer, n_samples=n_map, num_steps=n_steps, seed=0, 
                                     prob_model_ps = prob_model_ps, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform,
                                     track_loss_all = track_loss_all)
+            losses_all = False
         else:
             MAP_sample, losses, losses_all = MAP(posterior_version = "total", optimizer=optimizer, n_samples=n_map, num_steps=n_steps, seed=0, 
                                     prob_model_ps = prob_model_ps, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform,
@@ -1221,7 +1230,8 @@ class LensModelAnalysis:
         test_results = TestingResults(self.truth_test, prob_model_output)
         if self.simulation:
             test_results.calculate_relative_errors()
-        test_results.plot_loss_evolution(losses)
+        # test_results.plot_loss_evolution(losses)
+        test_results.plot_loss_evolution(losses, track_loss_all = losses_all)
         test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
         test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec, self.observed_flux)
 
