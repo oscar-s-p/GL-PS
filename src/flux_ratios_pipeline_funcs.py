@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -893,7 +893,7 @@ class TestingResults:
             losses_all_np = [track_loss_all[i].numpy() for i in range(4)]
         linestyles = [(0, (3, 5, 1, 5, 1, 5)), '--', '-.', ':']
         labels = ['distance loss', 'flux loss', 'prior loss', 'jacobian loss']
-        plt.figure(figsize=(6, 6))
+        plt.figure(figsize=(10, 6))
         for i in range(10):
             plt.plot(losses_np[:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i))
             if type(track_loss_all)!= bool:
@@ -903,7 +903,7 @@ class TestingResults:
         plt.title('loss evolution')
         plt.xlabel('step')
         plt.ylabel('loss')
-        plt.legend()
+        #plt.legend()
         if np.nanmax(losses_np[:,:10]) > 1000:
             plt.ylim([0, 1000])
         plt.show()
@@ -1141,7 +1141,8 @@ class LensModelAnalysis:
                  #lens_prior, 
                  phys_model,
                  observed_data = None, weight_dist =  1.*1e3, weight_flux = 1.*1e2, simulation = False,
-                 flux_ratios = False):
+                 flux_ratios = False,):
+        
         self.simulation = simulation
         self.delta_pix = delta_pix
         self.num_pix = num_pix
@@ -1169,7 +1170,12 @@ class LensModelAnalysis:
                 polynomial_decay_args = {'initial_learning_rate': 1e-1, #'decay_steps': 2000, 
                                           'end_learning_rate': 1e-2/5, 'power': 1.0},
                 uniform_comparison = True,
-                track_loss_all = False):
+                track_loss_all = False,
+                test_results_dict = {'relative_errors': True, 
+                                     'plot_loss': True, 
+                                     'flux_ratio_error': True, 
+                                     'delensed_positions': True,}
+                ):
         
         if self.simulation:
             if lens_sim is None:
@@ -1229,11 +1235,11 @@ class LensModelAnalysis:
 
         test_results = TestingResults(self.truth_test, prob_model_output)
         if self.simulation:
-            test_results.calculate_relative_errors()
+            if test_results_dict['relative_errors']: test_results.calculate_relative_errors()
         # test_results.plot_loss_evolution(losses)
-        test_results.plot_loss_evolution(losses, track_loss_all = losses_all)
-        test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
-        test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec, self.observed_flux)
+        if test_results_dict['plot_loss']: test_results.plot_loss_evolution(losses, track_loss_all = losses_all)
+        if test_results_dict['delensed_positions']: test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
+        if test_results_dict['flux_ratio_error']: test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec, self.observed_flux)
 
         # check gamma value when only the distance term is included with no prior
         if uniform_comparison:
