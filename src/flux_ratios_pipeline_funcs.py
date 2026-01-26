@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -511,7 +511,7 @@ def MAP(optimizer, prob_model_ps, prob_model, prob_model_uniform, posterior_vers
         with tf.GradientTape() as tape:
             agg_loss = - prob_model_ps.log_prob(trial)
             if track_loss_all:
-                agg_loss_all = - prob_model_ps.log_prob(trial, all=True)
+                agg_loss_all = prob_model_ps.log_prob(trial, all=True)
 
         gradients = tape.gradient(agg_loss, [trial])
         optimizer.apply_gradients(zip(gradients, [trial])) # type: ignore
@@ -799,7 +799,7 @@ class ProbModelPS:
         if all == False:
             return - dist_loss * self.weight_dist - flux_ratios_loss * self.weight_flux + self.prior.log_prob(constrained) + self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params))
         else:
-            return - dist_loss * self.weight_dist, - flux_ratios_loss * self.weight_flux, self.prior.log_prob(constrained), self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params))
+            return -(- dist_loss * self.weight_dist), -(- flux_ratios_loss * self.weight_flux), - self.prior.log_prob(constrained), - self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params))
 
 class ProbModelPS_only_dist:
     def __init__(self, x_arcsec, y_arcsec, prob_model):
