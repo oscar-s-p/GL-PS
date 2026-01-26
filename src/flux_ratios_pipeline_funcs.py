@@ -1200,12 +1200,14 @@ class LensModelAnalysis:
                                                                     polynomial_decay_args['end_learning_rate'],
                                                                     polynomial_decay_args['power'])
         optimizer = tf.keras.optimizers.Adam(schedule_fn) # type: ignore
-        MAP_sample, losses = MAP(posterior_version = "total", optimizer=optimizer, n_samples=n_map, num_steps=n_steps, seed=0, 
-                                 prob_model_ps = prob_model_ps, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform,
-                                 track_loss_all = track_loss_all)
-        if track_loss_all:
-            losses_rest = losses[1:]
-            losses = losses[0]
+        if not track_loss_all:
+            MAP_sample, losses = MAP(posterior_version = "total", optimizer=optimizer, n_samples=n_map, num_steps=n_steps, seed=0, 
+                                    prob_model_ps = prob_model_ps, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform,
+                                    track_loss_all = track_loss_all)
+        else:
+            MAP_sample, losses, losses_all = MAP(posterior_version = "total", optimizer=optimizer, n_samples=n_map, num_steps=n_steps, seed=0, 
+                                    prob_model_ps = prob_model_ps, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform,
+                                    track_loss_all = track_loss_all)
 
         lps = prob_model_ps.log_prob(MAP_sample)
         self.best = MAP_sample[tf.argmax(lps)] # type: ignore
