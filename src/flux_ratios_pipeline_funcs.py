@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.1.12"
+__version__ = "0.2.0"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -493,7 +493,8 @@ MAP
 """
 
 def MAP(optimizer, prob_model_ps, prob_model, prob_model_uniform, posterior_version, start=None, 
-        n_samples=500, num_steps=350, seed=0, track_loss=True,):
+        n_samples=500, num_steps=350, seed=0, track_loss=True, track_loss_all = False):
+    
     if posterior_version == "total":
       tf.random.set_seed(seed)
       start = prob_model.prior.sample(n_samples) if start is None else start
@@ -509,22 +510,48 @@ def MAP(optimizer, prob_model_ps, prob_model, prob_model_uniform, posterior_vers
     def train_step():
         with tf.GradientTape() as tape:
             agg_loss = - prob_model_ps.log_prob(trial)
+            if track_loss_all:
+                agg_loss_all = - prob_model_ps.log_prob(trial, all=True)
 
         gradients = tape.gradient(agg_loss, [trial])
         optimizer.apply_gradients(zip(gradients, [trial])) # type: ignore
-        return agg_loss if track_loss else None
+        if track_loss and not track_loss_all:
+            return agg_loss
+        elif track_loss_all:
+            return agg_loss, agg_loss_all
+        else:
+            return None
+        #return agg_loss if track_loss else None
 
     losses = tf.TensorArray(tf.float32, size=0, dynamic_size=True) if track_loss else None
+    if track_loss_all:
+        loss_dist = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        loss_flux = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        loss_3 = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        loss_4 = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
 
     with trange(num_steps) as pbar:
         for i in pbar:
             loss_value = train_step()
-            if track_loss:
+            if track_loss and not track_loss_all:
                 losses = losses.write(i, loss_value) # type: ignore
+            if track_loss_all:
+                losses = losses.write(i, loss_value[0]) # type: ignore
+                loss_dist = loss_dist.write(i, loss_value[1][0]) # type: ignore
+                loss_flux = loss_flux.write(i, loss_value[1][1]) # type: ignore
+                loss_3 = loss_3.write(i, loss_value[1][2]) # type: ignore
+                loss_4 = loss_4.write(i, loss_value[1][3]) # type: ignore
 
     final_losses = losses.stack() if track_loss else None # type: ignore
-
-    return trial, final_losses
+    if track_loss_all:
+        final_dist = loss_dist.stack() # type: ignore
+        final_flux = loss_flux.stack() # type: ignore
+        final_3 = loss_3.stack() # type: ignore
+        final_4 = loss_4.stack() # type: ignore
+    if not track_loss_all:
+        return trial, final_losses
+    else:
+        return trial, final_losses, [final_dist, final_flux, final_3, final_4]
 
 """
 SVI
@@ -714,7 +741,7 @@ class ProbModelPS:
         self.i, self.j = tf.boolean_mask(i, upper_triangle), tf.boolean_mask(j, upper_triangle)
 
     @tf.function
-    def log_prob(self, params):
+    def log_prob(self, params, all = False):
         constrained = self.prob_model.bij.forward(params)
 
         delens = tf.convert_to_tensor(_beta_epl_shear(self.x, self.y, constrained))
@@ -763,15 +790,16 @@ class ProbModelPS:
                 flux_loss = tf.reduce_mean(flux_diff, axis = 0)
                 #print("\nflux_loss", flux_loss)
 
-        print('')
-        print('Dist loss:', dist_loss)
-        print('Flux loss:', flux_ratios_loss)
+        # print('')
+        # print('Dist loss:', dist_loss)
+        # print('Flux loss:', flux_ratios_loss)
         # print('Prior log prob:', self.prior.log_prob(constrained).numpy())
         # print('Jacobian log det:', self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params)).numpy())
 
-
-        return - dist_loss * self.weight_dist - flux_ratios_loss * self.weight_flux + self.prior.log_prob(constrained) + self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params))
-
+        if all == False:
+            return - dist_loss * self.weight_dist - flux_ratios_loss * self.weight_flux + self.prior.log_prob(constrained) + self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params))
+        else:
+            return - dist_loss * self.weight_dist, - flux_ratios_loss * self.weight_flux, self.prior.log_prob(constrained), self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params))
 
 class ProbModelPS_only_dist:
     def __init__(self, x_arcsec, y_arcsec, prob_model):
@@ -920,7 +948,8 @@ class TestingResults:
         '''
         x_arcsec, y_arcsec are observed positions
         '''
-        #print("\nla mag del input", mag_sq_truth)
+        print("\n----- flux ratio errors -----")
+        print("la mag del input", mag_sq_truth)
         self.x = tf.repeat(x_arcsec[..., tf.newaxis], [1], axis=-1)
         self.y = tf.repeat(y_arcsec[..., tf.newaxis], [1], axis=-1)
         #####mag_de_truth = tf.square(magnification(self.x, self.y, self.truth))
@@ -976,7 +1005,7 @@ class TestingResults:
         '''
 
 
-    def magnification_error(self, observed_magnifications,):
+    def magnification_error(self, observed_magnifications = None,):
         if observed_magnifications is not None:
           #print("\nobserved_magnifications:", tf.sqrt(observed_magnifications))
           print("\nobserved_magnifications SN Zicky:", tf.sqrt(observed_magnifications)/15)
@@ -1131,7 +1160,9 @@ class LensModelAnalysis:
                 n_map = 4000, n_steps = 2000,
                 polynomial_decay_args = {'initial_learning_rate': 1e-1, #'decay_steps': 2000, 
                                           'end_learning_rate': 1e-2/5, 'power': 1.0},
-                uniform_comparison = True):
+                uniform_comparison = True,
+                track_loss_all = False):
+        
         if self.simulation:
             if lens_sim is None:
                 raise ValueError("For simulation mode, lens_sim must be provided.")
@@ -1170,7 +1201,12 @@ class LensModelAnalysis:
                                                                     polynomial_decay_args['power'])
         optimizer = tf.keras.optimizers.Adam(schedule_fn) # type: ignore
         MAP_sample, losses = MAP(posterior_version = "total", optimizer=optimizer, n_samples=n_map, num_steps=n_steps, seed=0, 
-                                 prob_model_ps = prob_model_ps, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform)
+                                 prob_model_ps = prob_model_ps, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform,
+                                 track_loss_all = track_loss_all)
+        if track_loss_all:
+            losses_rest = losses[1:]
+            losses = losses[0]
+
         lps = prob_model_ps.log_prob(MAP_sample)
         self.best = MAP_sample[tf.argmax(lps)] # type: ignore
         #print("best GD format", self.best)
