@@ -765,7 +765,7 @@ class ProbModelPS:
 
         print('')
         print('Dist loss:', dist_loss)
-        print('Flux loss:', flux_loss)
+        print('Flux loss:', flux_ratios_loss)
         # print('Prior log prob:', self.prior.log_prob(constrained).numpy())
         # print('Jacobian log det:', self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params)).numpy())
 
