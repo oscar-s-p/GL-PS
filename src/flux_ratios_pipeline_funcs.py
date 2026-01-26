@@ -1127,7 +1127,8 @@ class LensModelAnalysis:
                 lens_sim = None,
                 n_map = 4000, n_steps = 2000,
                 polynomial_decay_args = {'initial_learning_rate': 1e-1, #'decay_steps': 2000, 
-                                          'end_learning_rate': 1e-2/5, 'power': 1.0}):
+                                          'end_learning_rate': 1e-2/5, 'power': 1.0},
+                uniform_comparison = True):
         if self.simulation:
             if lens_sim is None:
                 raise ValueError("For simulation mode, lens_sim must be provided.")
@@ -1181,29 +1182,30 @@ class LensModelAnalysis:
             test_results.calculate_relative_errors()
         test_results.plot_loss_evolution(losses)
         test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
-        ### test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec)
+        test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec, self.observed_flux)
 
         # check gamma value when only the distance term is included with no prior
-        print("\nresults when only the distance term is included in the loss with no prior --------------------------------------------------\n")
-        prob_model_only_dist = ProbModelPS_only_dist(x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model_uniform,)
-        schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(polynomial_decay_args['initial_learning_rate'], # type: ignore
-                                                                    n_steps, 
-                                                                    polynomial_decay_args['end_learning_rate'],
-                                                                    polynomial_decay_args['power']) 
-        optimizer = tf.keras.optimizers.Adam(schedule_fn) # type: ignore
-        MAP_sample, losses = MAP(posterior_version = "only_dist", optimizer=optimizer, n_samples=n_map, num_steps=n_steps, seed=0, 
-                                 prob_model_ps = prob_model_only_dist, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform)
-        lps = prob_model_only_dist.log_prob(MAP_sample)
-        best = MAP_sample[tf.argmax(lps)] # type: ignore
-        prob_model_output_dist = self.prob_model_uniform.pack_bij.forward([best])[0]
-        print("\nBest parameters (only distance term):")#\n", prob_model_output_dist)
-        self.print_formatted_values_extra(prob_model_output_dist)
+        if uniform_comparison:
+            print("\nresults when only the distance term is included in the loss with no prior --------------------------------------------------\n")
+            prob_model_only_dist = ProbModelPS_only_dist(x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model_uniform,)
+            schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(polynomial_decay_args['initial_learning_rate'], # type: ignore
+                                                                        n_steps, 
+                                                                        polynomial_decay_args['end_learning_rate'],
+                                                                        polynomial_decay_args['power']) 
+            optimizer = tf.keras.optimizers.Adam(schedule_fn) # type: ignore
+            MAP_sample, losses = MAP(posterior_version = "only_dist", optimizer=optimizer, n_samples=n_map, num_steps=n_steps, seed=0, 
+                                    prob_model_ps = prob_model_only_dist, prob_model = self.prob_model, prob_model_uniform = self.prob_model_uniform)
+            lps = prob_model_only_dist.log_prob(MAP_sample)
+            best = MAP_sample[tf.argmax(lps)] # type: ignore
+            prob_model_output_dist = self.prob_model_uniform.pack_bij.forward([best])[0]
+            print("\nBest parameters (only distance term):")#\n", prob_model_output_dist)
+            self.print_formatted_values_extra(prob_model_output_dist)
 
-        test_results_dist = TestingResults(self.truth_test, prob_model_output_dist)
-        test_results_dist.plot_loss_evolution(losses)
-        if self.simulation:
-            test_results_dist.calculate_relative_errors()
-        test_results_dist.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
+            test_results_dist = TestingResults(self.truth_test, prob_model_output_dist)
+            test_results_dist.plot_loss_evolution(losses)
+            if self.simulation:
+                test_results_dist.calculate_relative_errors()
+            test_results_dist.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
         ### test_results_dist.flux_ratio_error(self.x_arcsec, self.y_arcsec)
 
 
