@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -1174,7 +1174,8 @@ class LensModelAnalysis:
                 test_results_dict = {'relative_errors': True, 
                                      'plot_loss': True, 
                                      'flux_ratio_error': True, 
-                                     'delensed_positions': True,}
+                                     'delensed_positions': True,},
+                return_loss = False,
                 ):
         
         if self.simulation:
@@ -1264,6 +1265,8 @@ class LensModelAnalysis:
                 test_results_dist.calculate_relative_errors()
             test_results_dist.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_epl_shear)
         ### test_results_dist.flux_ratio_error(self.x_arcsec, self.y_arcsec)
+        if return_loss:
+            return losses, losses_all
 
 
     def run_vi(self, n_vi = 500, num_steps = 600,
