@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.1.10"
+__version__ = "0.1.11"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -764,7 +764,10 @@ class ProbModelPS:
                 #print("\nflux_loss", flux_loss)
 
 
-
+        print('Dist loss:', dist_loss.numpy())
+        print('Flux loss:', flux_loss.numpy())
+        print('Prior log prob:', self.prior.log_prob(constrained).numpy())
+        print('Jacobian log det:', self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params)).numpy())
 
 
         return - dist_loss * self.weight_dist - flux_ratios_loss * self.weight_flux + self.prior.log_prob(constrained) + self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params))
@@ -1241,7 +1244,8 @@ class LensModelAnalysis:
 
         if method == "nuts":
             prob_model_ps = ProbModelPS(weight_dist = self.weight_dist, weight_flux = self.weight_flux, truth = self.truth_test, 
-                                        x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model, prior = self.prior)
+                                        x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model,
+                                        prior = self.prior)
             samples = HMC_nuts(q_z=self.q_z, n_hmc=n_hmc, init_eps=init_eps, init_l=init_l, max_leapfrog_steps=max_leapfrog_steps, num_burnin_steps=num_burnin_steps, 
                                num_results=num_results, prob_model_ps = prob_model_ps)
 
