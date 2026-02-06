@@ -5,6 +5,7 @@ Ptyhon module with function definitions for flux ratio modeling
 import pickle
 import matplotlib as mpl
 from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 import seaborn as sns     # type: ignore
 import tensorflow as tf   # type: ignore
@@ -34,7 +35,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.2.8"
+__version__ = "0.3.0"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -893,7 +894,9 @@ class TestingResults:
             losses_all_np = [track_loss_all[i].numpy() for i in range(4)]
         linestyles = [(0, (3, 5, 1, 5, 1, 5)), '--', '-.', ':']
         labels = ['distance loss', 'flux loss', 'prior loss', 'jacobian loss']
-        plt.figure(figsize=(10, 6))
+        linestyles_rel = ['-', ':', '--']
+        labels_rel = ['flux / dist', 'prior / dist', 'jacob / prior']
+        #plt.figure(figsize=(10, 6))
         fig, axs = plt.subplots(2,1,figsize = (10,10), sharex=True)
         for i in range(10):
             # plt.plot(losses_np[:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i))
@@ -909,16 +912,24 @@ class TestingResults:
                     # plt.plot(losses_all_np[j][:,i], label=f'{i+1} %s'%labels[j], linestyle=linestyles[j], color = plt.get_cmap('tab10')(i))
                     axs[0].plot(losses_all_np[j][:,i], label=f'{i+1} %s'%labels[j], linestyle=linestyles[j], color = plt.get_cmap('tab10')(i))
 
+        handles = [Line2D([], [], color = 'gray', label = labels[k], linestyle=linestyles[k]) for k in range(len(labels))]
+        handles_rel = [Line2D([], [], color = 'gray', label = labels_rel[k], linestyle=linestyles_rel[k]) for k in range(len(labels_rel))]
+        #handles.append(plt.plot([], [], color = 'gray', label = 'total loss'))
+        axs[0].legend(handles = handles)
+        axs[1].legend(handles = handles_rel)        
+
         axs[1].set_xlabel('step')
-        axs[0].set_title('loss evolution')
-        axs[1].set_title('-: flux / distance loss'+'\n..: prior / distance loss'+'\n--: jacobian / prior loss')
-        axs[0].set_ylabel('loss')
-        axs[1].set_ylabel('Relative losses')
+        axs[0].set_title('Loss evolution')
+        axs[1].set_title('Relative loss evolution')
+        # axs[0].set_ylabel('loss')
+        # axs[1].set_ylabel('Relative losses')
         #plt.legend()
         if np.nanmax(losses_np[:,:10]) > 1000:
             axs[0].set_ylim([0, 1000])
         axs[1].set_yscale('log')
-        axs[1].set_ylim([1e-3,1e3])
+        axs[1].set_ylim([1e-2,1e2])
+        axs[1].axhline(1e1, color = 'black', alpha = 0.5)
+        axs[1].axhline(1e-1, color = 'black', alpha = 0.5)
         plt.show()
 
     def calculate_relative_errors(self):
@@ -1340,7 +1351,7 @@ class LensModelAnalysis:
         axes = axes.flatten()
         for i, param_name in enumerate(parameter_names):
             ax = axes[i]
-            ax.plot(physical_samples[i, :, 0:6], label=f'{param_name}', alpha=0.4)
+            ax.plot(physical_samples[i, :, 0:10], label=f'{param_name}', alpha=0.4)
             ax.set_title(f'{param_name}')
             ax.set_xlabel('Steps')
             ax.grid(False)
