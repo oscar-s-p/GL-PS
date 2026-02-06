@@ -1040,7 +1040,7 @@ class TestingResults:
     def magnification_error(self, observed_magnifications = None,):
         if observed_magnifications is not None:
           #print("\nobserved_magnifications:", tf.sqrt(observed_magnifications))
-          print("\nobserved_magnifications SN Zicky:", tf.sqrt(observed_magnifications)/15)
+          print("\nobserved_magnifications:", tf.sqrt(observed_magnifications)/15) #TODO why sqrt(obs_mag)/15?
         x_rec = tf.repeat(self.x_arcsec_recovered[..., tf.newaxis], [1], axis=-1) # type: ignore
         y_rec = tf.repeat(self.y_arcsec_recovered[..., tf.newaxis], [1], axis=-1) # type: ignore
         predicted_mag_rec = magnification(x_rec, y_rec, [self.prob_model_output])
