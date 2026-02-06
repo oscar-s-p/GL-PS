@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.2.6"
+__version__ = "0.2.8"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -898,11 +898,11 @@ class TestingResults:
         for i in range(10):
             # plt.plot(losses_np[:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i))
             axs[0].plot(losses_np[:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i))
-            axs[1].plot(losses_all_np[1][:, i] / losses_all_np[0][:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i),
+            axs[1].plot(abs(losses_all_np[1][:, i] / losses_all_np[0][:, i]), label=f'flux / dist {i+1}', color = plt.get_cmap('tab10')(i),
                         linestyle = '-')
-            axs[1].plot(losses_all_np[2][:, i] / losses_all_np[0][:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i),
+            axs[1].plot(abs(losses_all_np[2][:, i] / losses_all_np[0][:, i]), label=f'prior / dist {i+1}', color = plt.get_cmap('tab10')(i),
                         linestyle = ':')
-            axs[1].plot(losses_all_np[3][:, i] / losses_all_np[2][:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i),
+            axs[1].plot(abs(losses_all_np[3][:, i] / losses_all_np[2][:, i]), label=f'jacob / prior {i+1}', color = plt.get_cmap('tab10')(i),
                         linestyle = '--')
             if type(track_loss_all)!= bool:
                 for j in range(4):
@@ -916,7 +916,9 @@ class TestingResults:
         axs[1].set_ylabel('Relative losses')
         #plt.legend()
         if np.nanmax(losses_np[:,:10]) > 1000:
-            axs[0].ylim([0, 1000])
+            axs[0].set_ylim([0, 1000])
+        axs[1].set_yscale('log')
+        axs[1].set_ylim([1e-3,1e3])
         plt.show()
 
     def calculate_relative_errors(self):
@@ -1064,7 +1066,7 @@ class TestingResults:
         #print(lens_omitted_img)
         brightest_pix_recovered = converter.find_brightest_points(lens_omitted_img)
         plt.plot(brightest_pix_recovered[:, 1], brightest_pix_recovered[:, 0], ".", ms = 15, color = "dodgerblue", alpha = 0.6, label = "brighest points")  # type: ignore
-        plt.title("selected brightest points")
+        # plt.title("selected brightest points")
         plt.legend()
         plt.show()
         self.x_arcsec_recovered, self.y_arcsec_recovered = converter.pix_to_arcsec(brightest_pix_recovered)
@@ -1100,17 +1102,17 @@ class TestingResults:
         }
         kwargs_lens = [kwargs_main_lens, kwargs_shear]
         #print("\nkwargs_lens", kwargs_lens)
-        print("Kwargs lens")
+        print("\nKwargs lens")
         print_formatted_dict(kwargs_lens, percentage=False)
 
         # plotting with Lenstronomy
         lens_model = LensModel(lens_model_list=['EPL', 'SHEAR'])
-        fig, axes = plt.subplots(figsize=(12, 12))
+        fig, axes = plt.subplots(figsize=(8, 8))
         extent = [-self.num_pix / 2 * self.delta_pix, self.num_pix / 2 * self.delta_pix, - self.num_pix / 2 * self.delta_pix, self.num_pix / 2 * self.delta_pix]
 
         lens_plot.lens_model_plot(axes, lensModel=lens_model, kwargs_lens=kwargs_lens, numPix=self.num_pix, deltaPix=self.delta_pix,
                                   sourcePos_x=self.recovered_x, sourcePos_y=self.recovered_y, point_source=True, with_caustics=True, # type: ignore
-                                  fast_caustic=False, coord_inverse=True) 
+                                  fast_caustic=False, coord_inverse=False) #True) 
         axes.imshow(lens_omitted_img, origin='lower', vmin=0, vmax=10, extent=extent) # type: ignore
         axes.plot(x_arcsec, y_arcsec, '.', color="blue", ms=15, label = "observed positions")
         axes.plot(self.x_arcsec_recovered, self.y_arcsec_recovered, '.', color = "red", ms = 15, label = "recovered positions")
@@ -1121,7 +1123,7 @@ class TestingResults:
 
         axes.legend(fontsize=14)
         axes.grid(False)
-        axes.invert_yaxis()
+        #axes.invert_yaxis()
 
         for line in axes.lines:
             if line.get_marker() == 'd':
