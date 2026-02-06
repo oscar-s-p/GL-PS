@@ -35,7 +35,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -895,7 +895,7 @@ class TestingResults:
         linestyles = [(0, (3, 5, 1, 5, 1, 5)), '--', '-.', ':']
         labels = ['distance loss', 'flux loss', 'prior loss', 'jacobian loss']
         linestyles_rel = ['-', ':', '--']
-        labels_rel = ['flux / dist', 'prior / dist', 'jacob / prior']
+        labels_rel = ['flux / dist', 'prior / dist', 'jacob / dist']
         #plt.figure(figsize=(10, 6))
         fig, axs = plt.subplots(2,1,figsize = (10,10), sharex=True)
         for i in range(10):
@@ -905,7 +905,7 @@ class TestingResults:
                         linestyle = '-')
             axs[1].plot(abs(losses_all_np[2][:, i] / losses_all_np[0][:, i]), label=f'prior / dist {i+1}', color = plt.get_cmap('tab10')(i),
                         linestyle = ':')
-            axs[1].plot(abs(losses_all_np[3][:, i] / losses_all_np[2][:, i]), label=f'jacob / prior {i+1}', color = plt.get_cmap('tab10')(i),
+            axs[1].plot(abs(losses_all_np[3][:, i] / losses_all_np[0][:, i]), label=f'jacob / dist {i+1}', color = plt.get_cmap('tab10')(i),
                         linestyle = '--')
             if type(track_loss_all)!= bool:
                 for j in range(4):
