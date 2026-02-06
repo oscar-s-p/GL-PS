@@ -34,7 +34,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.2.4"
+__version__ = "0.2.6"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -894,18 +894,29 @@ class TestingResults:
         linestyles = [(0, (3, 5, 1, 5, 1, 5)), '--', '-.', ':']
         labels = ['distance loss', 'flux loss', 'prior loss', 'jacobian loss']
         plt.figure(figsize=(10, 6))
+        fig, axs = plt.subplots(2,1,figsize = (10,10), sharex=True)
         for i in range(10):
-            plt.plot(losses_np[:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i))
+            # plt.plot(losses_np[:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i))
+            axs[0].plot(losses_np[:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i))
+            axs[1].plot(losses_all_np[1][:, i] / losses_all_np[0][:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i),
+                        linestyle = '-')
+            axs[1].plot(losses_all_np[2][:, i] / losses_all_np[0][:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i),
+                        linestyle = ':')
+            axs[1].plot(losses_all_np[3][:, i] / losses_all_np[2][:, i], label=f'walker {i+1}', color = plt.get_cmap('tab10')(i),
+                        linestyle = '--')
             if type(track_loss_all)!= bool:
                 for j in range(4):
-                    plt.plot(losses_all_np[j][:,i], label=f'{i+1} %s'%labels[j], linestyle=linestyles[j], color = plt.get_cmap('tab10')(i))
+                    # plt.plot(losses_all_np[j][:,i], label=f'{i+1} %s'%labels[j], linestyle=linestyles[j], color = plt.get_cmap('tab10')(i))
+                    axs[0].plot(losses_all_np[j][:,i], label=f'{i+1} %s'%labels[j], linestyle=linestyles[j], color = plt.get_cmap('tab10')(i))
 
-        plt.title('loss evolution')
-        plt.xlabel('step')
-        plt.ylabel('loss')
+        axs[1].set_xlabel('step')
+        axs[0].set_title('loss evolution')
+        axs[1].set_title('-: flux / distance loss'+'\n..: prior / distance loss'+'\n--: jacobian / prior loss')
+        axs[0].set_ylabel('loss')
+        axs[1].set_ylabel('Relative losses')
         #plt.legend()
         if np.nanmax(losses_np[:,:10]) > 1000:
-            plt.ylim([0, 1000])
+            axs[0].ylim([0, 1000])
         plt.show()
 
     def calculate_relative_errors(self):
