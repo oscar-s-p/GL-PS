@@ -113,31 +113,19 @@ def deriv_shear(x, y, gamma1, gamma2):
 ##########################################################
 @tf.function
 def _deriv_sie_shear(x, y, lens_params):
-  f_xi1, f_yi1 = deriv_sie(x, y, **lens_params[0][0])   # type: ignore  # SIE
-  # SIS: use deriv_sie with e1=0, e2=0 for uniform tracing
-  sis_params = dict(**lens_params[0][1])
-  sis_params['e1'] = tf.zeros_like(sis_params['theta_E'])
-  sis_params['e2'] = tf.zeros_like(sis_params['theta_E'])
-  f_xi2, f_yi2 = deriv_sie(x, y, **sis_params)           # type: ignore  # SIS
-  f_xi3, f_yi3 = deriv_shear(x, y, **lens_params[0][2])  # type: ignore  # Shear
-  f_xi, f_yi = f_xi1 + f_xi2 + f_xi3, f_yi1 + f_yi2 + f_yi3
+  f_xi1, f_yi1 = deriv_sie(x, y, **lens_params[0][0])   # type: ignore
+  f_xi2, f_yi2 = deriv_shear(x, y, **lens_params[0][1]) # type: ignore
+  f_xi, f_yi = f_xi1 + f_xi2, f_yi1 + f_yi2
   return f_xi,f_yi
 #########################################################
 
 @tf.function
 def _beta_sie_shear(x, y, lens_params):
 
- f_xi, f_yi = deriv_sie(x, y, **lens_params[0][0])     # type: ignore  # SIE
+ f_xi, f_yi = deriv_sie(x, y, **lens_params[0][0])     # type: ignore
  beta_x, beta_y = x - f_xi, y - f_yi
 
- # SIS: use deriv_sie with e1=0, e2=0 for uniform tracing
- sis_params = dict(**lens_params[0][1])
- sis_params['e1'] = tf.zeros_like(sis_params['theta_E'])
- sis_params['e2'] = tf.zeros_like(sis_params['theta_E'])
- f_xi, f_yi = deriv_sie(x, y, **sis_params)             # type: ignore  # SIS
- beta_x, beta_y = beta_x - f_xi, beta_y - f_yi
-
- f_xi, f_yi = deriv_shear(x, y, **lens_params[0][2])    # type: ignore  # Shear
+ f_xi, f_yi = deriv_shear(x, y, **lens_params[0][1])   # type: ignore
  beta_x, beta_y = beta_x - f_xi, beta_y - f_yi
 
  return beta_x, beta_y
@@ -1131,27 +1119,24 @@ class TestingResults:
         # print("\nparams")
         # print_formatted_dict(params, percentage=False)
 
-        kwargs_main_lens_1 = {
+        kwargs_main_lens = {
             'theta_E': params[0]['theta_E'].numpy()[0],
+            # 'gamma': params[0]['gamma'].numpy()[0],
             'e1': params[0]['e1'].numpy()[0],
             'e2': params[0]['e2'].numpy()[0],
             'center_x': params[0]['center_x'].numpy()[0],
             'center_y': params[0]['center_y'].numpy()[0],}
-        kwargs_main_lens_2 = {
-            'theta_E': params[1]['theta_E'].numpy()[0],
-            'center_x': params[1]['center_x'].numpy()[0],
-            'center_y': params[1]['center_y'].numpy()[0],}
         kwargs_shear = {
-            'gamma1': params[2]['gamma1'].numpy()[0],
-            'gamma2': params[2]['gamma2'].numpy()[0],
+            'gamma1': params[1]['gamma1'].numpy()[0],
+            'gamma2': params[1]['gamma2'].numpy()[0],
         }
-        kwargs_lens = [kwargs_main_lens_1, kwargs_main_lens_2, kwargs_shear]
+        kwargs_lens = [kwargs_main_lens, kwargs_shear]
         #print("\nkwargs_lens", kwargs_lens)
         print("\nKwargs lens")
         print_formatted_dict(kwargs_lens, percentage=False)
 
         # plotting with Lenstronomy
-        lens_model = LensModel(lens_model_list=['SIE', 'SIS', 'SHEAR'])
+        lens_model = LensModel(lens_model_list=['SIE', 'SHEAR'])
         fig, axes = plt.subplots(figsize=(8, 8))
         extent = [-self.num_pix / 2 * self.delta_pix, self.num_pix / 2 * self.delta_pix, - self.num_pix / 2 * self.delta_pix, self.num_pix / 2 * self.delta_pix]
 
@@ -1210,7 +1195,7 @@ class LensModelAnalysis:
         self.prob_model = prob_model
         self.prob_model_uniform = prob_model_uniform
         self.prior = prior
-        self.lens_model = LensModel(lens_model_list=['SIE', 'SIS', 'SHEAR'])
+        self.lens_model = LensModel(lens_model_list=['SIE', 'SHEAR'])
         self.best = None
         self.q_z = None
         self.observed_data = observed_data # a list. the first sublist are observed positions, [[x] [y]]; the second are observed magnifications
@@ -1367,21 +1352,17 @@ class LensModelAnalysis:
         print(f"\n----------------method: {method}------------------\n")
         get_samples = lambda x: tf.convert_to_tensor([
             x[0][0]['theta_E'],
+            # x[0][0]['gamma'],
             x[0][0]['e1'],
             x[0][0]['e2'],
             x[0][0]['center_x'],
             x[0][0]['center_y'],
-            x[0][1]['theta_E'],
-            x[0][1]['center_x'],
-            x[0][1]['center_y'],
-            x[0][2]['gamma1'],
-            x[0][2]['gamma2'],
+            x[0][1]['gamma1'],
+            x[0][1]['gamma2'],
         ])
         physical_samples = get_samples(self.prob_model.bij.forward(samples)).numpy() # type: ignore
 
-        parameter_names = ['theta_E_1', 'e1_1', 'e2_1', 'center_x_1', 'center_y_1',
-                           'theta_E_2', 'center_x_2', 'center_y_2',
-                           'gamma1', 'gamma2']
+        parameter_names = ['theta_E', 'e1', 'e2', 'center_x', 'center_y', 'gamma1', 'gamma2']
         n_params = len(parameter_names)
         n_cols = 2
         n_rows = (n_params + n_cols - 1) // n_cols
@@ -1402,11 +1383,10 @@ class LensModelAnalysis:
         self.print_formatted_values(self.prob_model.pack_bij.forward([ESS])[0], "ess")
 
         markers = get_samples(self.truth_test)
-        plt.figure(figsize=(20, 20))
-        fig = corner.corner(physical_samples.reshape((10,-1)).T,
+        plt.figure(figsize=(14, 14))
+        fig = corner.corner(physical_samples.reshape((7,-1)).T,
                             show_titles=True, title_fmt='.3f',
-                            labels=[r'$\theta_{E,1}$', r'$\epsilon_{1,1}$', r'$\epsilon_{2,1}$', r'$x_1$', r'$y_1$',
-                                    r'$\theta_{E,2}$', r'$x_2$', r'$y_2$',
+                            labels=[r'$\theta_E$', r'$\epsilon_1$', r'$\epsilon_2$', r'$x$', r'$y$', 
                                     r'$\gamma_{1,ext}$', r'$\gamma_{2,ext}$'],fig=plt.gcf());
         plt.show()
 
@@ -1429,21 +1409,22 @@ class LensModelAnalysis:
             print(f"{param_name:<10} | {mean_values[param_name]:>8.4f} | {median_values[param_name]:>8.4f}")
 
 
-        dict1_keys = {'theta_E', 'e1', 'e2', 'center_x', 'center_y'}  # SIE
-        dict2_keys = {'theta_E', 'center_x', 'center_y'}               # SIS (no e1, e2)
-        dict3_keys = {'gamma1', 'gamma2'}
+        dict1_keys = {'theta_E', 'e1', 'e2', 'center_x', 'center_y'}
+        dict2_keys = {'gamma1', 'gamma2'}
 
-    # Map parameter names back to the base key names expected by the lens model dicts
-        # SIE parameters (strip _1 suffix)
-        list_of_dicts1 = [{key: tf.convert_to_tensor([median_values[key + '_1']]) for key in dict1_keys}]
-        # SIS parameters (strip _2 suffix)
-        list_of_dicts2 = [{key: tf.convert_to_tensor([median_values[key + '_2']]) for key in dict2_keys}]
-        # Shear parameters (no suffix)
-        list_of_dicts3 = [{key: tf.convert_to_tensor([median_values[key]]) for key in dict3_keys}]
-        combined = [list_of_dicts1[0], list_of_dicts2[0], list_of_dicts3[0]]
+    # Splitting the dictionary and creating lists of dictionaries
+        list_of_dicts1 = [{key: tf.convert_to_tensor([median_values[key]]) for key in dict1_keys}]
+        list_of_dicts2 = [{key: tf.convert_to_tensor([median_values[key]]) for key in dict2_keys}]
+        #print("list of dicts 1", list_of_dicts1)
+        #print("list of dicts 2", list_of_dicts2)
+        combined = [list_of_dicts1[0], list_of_dicts2[0]]
 
+        #print("combined", combined)
+        #median_values_list = tf.reshape(combined, [8])
+
+        #print("median values hmc format", combined)
         testin = self.prob_model.pack_bij.inverse([combined])
-        testin = tf.reshape(testin, [10])
+        testin = tf.reshape(testin, [7])
 
         median_hmc_output = self.prob_model.pack_bij.forward([testin])[0]
 
