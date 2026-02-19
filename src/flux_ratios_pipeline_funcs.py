@@ -35,7 +35,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.4.0"
+__version__ = "0.4.7"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -49,63 +49,82 @@ def _rotate(x, y, phi):
 
 @tf.function
 def deriv_epl(x, y, theta_E, gamma, e1, e2, center_x, center_y):
-  phi = tf.atan2(e2, e1) / 2
-  c = tf.clip_by_value(tf.math.sqrt(e1 ** 2 + e2 ** 2), 0, 1)
-  q = (1 - c) / (1 + c) # type: ignore
-  theta_E_conv = theta_E / (tf.math.sqrt((1.0 + q ** 2) / (2.0 * q)))
-  b = theta_E_conv * tf.math.sqrt((1 + q ** 2) / 2)
-  t = gamma - 1
+    phi = tf.atan2(e2, e1) / 2
+    c = tf.clip_by_value(tf.math.sqrt(e1 ** 2 + e2 ** 2), 0, 1)
+    q = (1 - c) / (1 + c) # type: ignore
+    theta_E_conv = theta_E / (tf.math.sqrt((1.0 + q ** 2) / (2.0 * q)))
+    b = theta_E_conv * tf.math.sqrt((1 + q ** 2) / 2)
+    t = gamma - 1
 
-  x, y = x - center_x, y - center_y
-  x, y = _rotate(x, y, phi) # type: ignore
+    x, y = x - center_x, y - center_y
+    x, y = _rotate(x, y, phi) # type: ignore
 
 
-  R = tf.clip_by_value(tf.math.sqrt((q * x) ** 2 + y ** 2), 1e-10, 1e10)
-  angle = tf.math.atan2(y, q * x)
-  f = (1 - q) / (1 + q)
-  # What is this below?
-  Cs, Ss = tf.math.cos(angle), tf.math.sin(angle)
-  Cs2, Ss2 = tf.math.cos(2 * angle), tf.math.sin(2 * angle)
-  niter = tf.stop_gradient(tf.math.log(1e-12) / tf.math.log(tf.reduce_max(f)) + 2)
+    R = tf.clip_by_value(tf.math.sqrt((q * x) ** 2 + y ** 2), 1e-10, 1e10)
+    angle = tf.math.atan2(y, q * x)
+    f = (1 - q) / (1 + q)
+    # What is this below?
+    Cs, Ss = tf.math.cos(angle), tf.math.sin(angle)
+    Cs2, Ss2 = tf.math.cos(2 * angle), tf.math.sin(2 * angle)
+    niter = tf.stop_gradient(tf.math.log(1e-12) / tf.math.log(tf.reduce_max(f)) + 2)
+
+    def body(n, p):
+        last_x, last_y, f_x, f_y = p
+        prefac = -f * (2 * n - (2 - t)) / (2 * n + (2 - t))
+        last_x, last_y = prefac * (Cs2 * last_x - Ss2 * last_y), prefac * (
+                Ss2 * last_x + Cs2 * last_y
+        )
+        return n + 1, (last_x, last_y, f_x + last_x, f_y + last_y)
+
+    _, _, fx, fy = tf.while_loop(
+        lambda i, p: i < niter,
+        body, (1.0, (Cs, Ss, Cs, Ss)),
+        maximum_iterations = 500,
+        swap_memory=True,
+    )[1] # type: ignore
+
+    prefac = (2 * b) / (1 + q) * tf.math.pow(b / R, t - 1)
+    fx, fy = fx * prefac, fy * prefac
+    return _rotate(fx, fy, -phi)
 
 def deriv_sie(x, y, theta_E, e1, e2, center_x, center_y):
-  phi = tf.atan2(e2, e1) / 2
-  c = tf.clip_by_value(tf.math.sqrt(e1 ** 2 + e2 ** 2), 0, 1)
-  q = (1 - c) / (1 + c) # type: ignore
-  theta_E_conv = theta_E / (tf.math.sqrt((1.0 + q ** 2) / (2.0 * q)))
-  b = theta_E_conv * tf.math.sqrt((1 + q ** 2) / 2)
-  t = 2 - 1
-    
-  x, y = x - center_x, y - center_y
-  x, y = _rotate(x, y, phi) # type: ignore
+    phi = tf.atan2(e2, e1) / 2
+    c = tf.clip_by_value(tf.math.sqrt(e1 ** 2 + e2 ** 2), 0, 1)
+    q = (1 - c) / (1 + c) # type: ignore
+    theta_E_conv = theta_E / (tf.math.sqrt((1.0 + q ** 2) / (2.0 * q)))
+    b = theta_E_conv * tf.math.sqrt((1 + q ** 2) / 2)
+    t = 2 - 1
+        
+    x, y = x - center_x, y - center_y
+    x, y = _rotate(x, y, phi) # type: ignore
 
 
-  R = tf.clip_by_value(tf.math.sqrt((q * x) ** 2 + y ** 2), 1e-10, 1e10)
-  angle = tf.math.atan2(y, q * x)
-  f = (1 - q) / (1 + q)
-  Cs, Ss = tf.math.cos(angle), tf.math.sin(angle)
-  Cs2, Ss2 = tf.math.cos(2 * angle), tf.math.sin(2 * angle)
+    R = tf.clip_by_value(tf.math.sqrt((q * x) ** 2 + y ** 2), 1e-10, 1e10)
+    angle = tf.math.atan2(y, q * x)
+    f = (1 - q) / (1 + q)
+    Cs, Ss = tf.math.cos(angle), tf.math.sin(angle)
+    Cs2, Ss2 = tf.math.cos(2 * angle), tf.math.sin(2 * angle)
 
-  niter = tf.stop_gradient(tf.math.log(1e-12) / tf.math.log(tf.reduce_max(f)) + 2)
+    niter = tf.stop_gradient(tf.math.log(1e-12) / tf.math.log(tf.reduce_max(f)) + 2)
 
-  def body(n, p):
-      last_x, last_y, f_x, f_y = p
-      prefac = -f * (2 * n - (2 - t)) / (2 * n + (2 - t))
-      last_x, last_y = prefac * (Cs2 * last_x - Ss2 * last_y), prefac * (
-              Ss2 * last_x + Cs2 * last_y
-      )
-      return n + 1, (last_x, last_y, f_x + last_x, f_y + last_y)
+    def body(n, p):
+        last_x, last_y, f_x, f_y = p
+        prefac = -f * (2 * n - (2 - t)) / (2 * n + (2 - t))
+        last_x, last_y = prefac * (Cs2 * last_x - Ss2 * last_y), prefac * (
+                Ss2 * last_x + Cs2 * last_y
+        )
+        return n + 1, (last_x, last_y, f_x + last_x, f_y + last_y)
 
-  _, _, fx, fy = tf.while_loop(
-      lambda i, p: i < niter,
-      body, (1.0, (Cs, Ss, Cs, Ss)),
-      maximum_iterations = 500,
-      swap_memory=True,
-  )[1] # type: ignore
+    _, _, fx, fy = tf.while_loop(
+        lambda i, p: i < niter,
+        body, (1.0, (Cs, Ss, Cs, Ss)),
+        maximum_iterations = 500,
+        swap_memory=True,
+    )[1] # type: ignore
 
-  prefac = (2 * b) / (1 + q) * tf.math.pow(b / R, t - 1)
-  fx, fy = fx * prefac, fy * prefac
-  return _rotate(fx, fy, -phi)
+    prefac = (2 * b) / (1 + q) * tf.math.pow(b / R, t - 1)
+    fx, fy = fx * prefac, fy * prefac
+    return _rotate(fx, fy, -phi)
 
 @tf.function
 def deriv_shear(x, y, gamma1, gamma2):
@@ -134,13 +153,13 @@ def _deriv_sie_shear(x, y, lens_params):
 @tf.function
 def _beta_epl_shear(x, y, lens_params):
 
- f_xi, f_yi = deriv_epl(x, y, **lens_params[0][0])     # type: ignore
- beta_x, beta_y = x - f_xi, y - f_yi
+    f_xi, f_yi = deriv_epl(x, y, **lens_params[0][0])     #type: ignore
+    beta_x, beta_y = x - f_xi, y - f_yi
 
- f_xi, f_yi = deriv_shear(x, y, **lens_params[0][1])   # type: ignore
- beta_x, beta_y = beta_x - f_xi, beta_y - f_yi
+    f_xi, f_yi = deriv_shear(x, y, **lens_params[0][1])   # type: ignore
+    beta_x, beta_y = beta_x - f_xi, beta_y - f_yi
 
- return beta_x, beta_y
+    return beta_x, beta_y
 #########################################################
 
 @tf.function
@@ -179,7 +198,7 @@ def _hessian_differential_cross(x, y, kwargs, diff=0.0001, mode = 'sie'):
 
         # alpha_ra_dx_, alpha_dec_dx_ = _beta_EPL_shear(x - diff/2, y, kwargs)
         # alpha_ra_dy_, alpha_dec_dy_ = _beta_EPL_shear(x, y - diff/2, kwargs)
-        if mode == 'sie'
+        if mode == 'sie':
             alpha_ra_dx, alpha_dec_dx = _deriv_sie_shear(x + diff/2, y, kwargs) # type: ignore
             alpha_ra_dy, alpha_dec_dy = _deriv_sie_shear(x, y + diff/2, kwargs) # type: ignore
 
@@ -978,7 +997,7 @@ class TestingResults:
         # self.phys_model = phys_model
 
 
-    def plot_loss_evolution(self, losses, track_loss_all=False):
+    def plot_loss_evolution(self, losses, track_loss_all=False, weights_all = False):
         losses_np = losses.numpy()
         if type(track_loss_all)!= bool:
             losses_all_np = [track_loss_all[i].numpy() for i in range(4)]
@@ -1011,6 +1030,8 @@ class TestingResults:
         axs[1].set_xlabel('step')
         axs[0].set_title('Loss evolution')
         axs[1].set_title('Relative loss evolution')
+        if type(weights_all)!=bool:
+            fig.suptitle('w_d = %.1e | w_f = %.1e'%(weights_all[0], weights_all[1]))
         # axs[0].set_ylabel('loss')
         # axs[1].set_ylabel('Relative losses')
         #plt.legend()
@@ -1081,7 +1102,7 @@ class TestingResults:
         #####mag_de_truth = tf.square(magnification(self.x, self.y, self.truth))
         #print("\ncon truth:", mag_de_truth)
 
-        mag_sq_truth = tf.expand_dims(mag_sq_truth, 1) if mag_sq_truth is not None else tf.square(magnification(self.x, self.y, self.truth))
+        mag_sq_truth = tf.expand_dims(mag_sq_truth, 1) if mag_sq_truth is not None else tf.square(magnification(self.x, self.y, self.truth, mode = self.mode))
         #print("\nla mag del input", mag_sq_truth)
 
         ratios = tf.expand_dims(mag_sq_truth, 1) / tf.expand_dims(mag_sq_truth, 0)
@@ -1098,7 +1119,7 @@ class TestingResults:
         upper_triangle = tf.logical_and(i < j, tf.ones_like(i, dtype=bool))
         i, j = tf.boolean_mask(i, upper_triangle), tf.boolean_mask(j, upper_triangle)
 
-        det_sq = tf.square(determinant(self.x, self.y, [self.prob_model_output]))
+        det_sq = tf.square(determinant(self.x, self.y, [self.prob_model_output], mode = self.mode))
         gi = tf.gather(det_sq, i, axis=0)
         gj = tf.gather(det_sq, j, axis=0)
         loss_terms = tf.abs(gj - gi * ratios_truth)
@@ -1137,10 +1158,10 @@ class TestingResults:
           print("\nobserved_magnifications:", tf.sqrt(observed_magnifications)/15) #TODO why sqrt(obs_mag)/15?
         x_rec = tf.repeat(self.x_arcsec_recovered[..., tf.newaxis], [1], axis=-1) # type: ignore
         y_rec = tf.repeat(self.y_arcsec_recovered[..., tf.newaxis], [1], axis=-1) # type: ignore
-        predicted_mag_rec = magnification(x_rec, y_rec, [self.prob_model_output])
+        predicted_mag_rec = magnification(x_rec, y_rec, [self.prob_model_output], mode = self.mode)
         print("\nPredicted magnifications (in recovered positions). The ordering may have changed:\n", predicted_mag_rec.numpy()) # type: ignore
 
-        predicted_mag = magnification(self.x, self.y, [self.prob_model_output])
+        predicted_mag = magnification(self.x, self.y, [self.prob_model_output], mode = self.mode)
         print("\nPredicted magnifications (in observed positions):\n", predicted_mag.numpy()) # type: ignore
 
 
@@ -1383,7 +1404,7 @@ class LensModelAnalysis:
         if self.simulation:
             if test_results_dict['relative_errors']: test_results.calculate_relative_errors()
         # test_results.plot_loss_evolution(losses)
-        if test_results_dict['plot_loss']: test_results.plot_loss_evolution(losses, track_loss_all = losses_all)
+        if test_results_dict['plot_loss']: test_results.plot_loss_evolution(losses, track_loss_all = losses_all, weights_all = [self.weight_dist, self.weight_flux]) #type: ignore
         if test_results_dict['delensed_positions']: test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec)#, _beta_sie_shear)
         if test_results_dict['flux_ratio_error']: test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec, self.observed_flux)
 
