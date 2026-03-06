@@ -35,7 +35,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.4.7"
+__version__ = "0.4.8"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -980,7 +980,8 @@ class TestingResults:
                 #  lens_prior,
                 #  phys_model,
                  num_pix = 40, delta_pix = 0.02,
-                 mode = 'sie'):
+                 mode = 'sie',
+                 number_of_im = 4):
         self.truth = truth
         self.prob_model_output = prob_model_output
         self.recovered_x = None
@@ -991,7 +992,7 @@ class TestingResults:
         self.y_arcsec_recovered = None
         self.mode = mode
         if mode not in ['epl', 'sie']: print('ERROR: "mode" must be in "epl" or "sie".')
-
+        self.number_of_im = number_of_im
         # self.prior = prior
         # self.lens_prior = lens_prior
         # self.phys_model = phys_model
@@ -1186,7 +1187,7 @@ class TestingResults:
         print("self.prob_model_output")
         print_formatted_dict(self.prob_model_output, percentage=False)
         lens_omitted_img = lens_sim.simulate([self.prob_model_output,[],[{"center_x": self.recovered_x, "center_y": self.recovered_y, 'Ie': 2815.97}]]) # Omit lens light
-        converter = BrightestPoints(number_of_images = 4, num_pixels=self.num_pix, grid_size=50, delta_pix=self.delta_pix, supersample=1)
+        converter = BrightestPoints(number_of_images = self.number_of_im, num_pixels=self.num_pix, grid_size=50, delta_pix=self.delta_pix, supersample=1)
         plt.imshow(lens_omitted_img, origin = 'lower', norm='log') # type: ignore
         plt.title("Relensed image from recovered parameters and select brightest points")
         #print(lens_omitted_img)
@@ -1300,7 +1301,8 @@ class LensModelAnalysis:
                  phys_model,
                  observed_data = None, weight_dist =  1.*1e3, weight_flux = 1.*1e2, simulation = False,
                  flux_ratios = False,
-                 mode = 'sie'):
+                 mode = 'sie',
+                 number_of_im = 4):
         
         self.simulation = simulation
         self.delta_pix = delta_pix
@@ -1318,6 +1320,7 @@ class LensModelAnalysis:
             self.lens_model = LensModel(lens_model_list=['EPL', 'SHEAR'])
         else:
             print('ERROR: "mode" must be "sie" or "epl".')
+        self.number_of_im = number_of_im
         self.best = None
         self.q_z = None
         self.observed_data = observed_data # a list. the first sublist are observed positions, [[x] [y]]; the second are observed magnifications
@@ -1348,7 +1351,7 @@ class LensModelAnalysis:
                 raise ValueError("For simulation mode, lens_sim must be provided.")
             print("\nSimulated image and brightest points:\n")
             lens_omitted_img = lens_sim.simulate([self.truth_test[0], [], self.truth_test[2]])
-            converter = BrightestPoints(number_of_images=4, num_pixels=self.num_pix, grid_size=20, delta_pix=self.delta_pix, supersample=1) # 40
+            converter = BrightestPoints(number_of_images=self.number_of_im, num_pixels=self.num_pix, grid_size=20, delta_pix=self.delta_pix, supersample=1) # 40
             #print("lens_omitted_img", lens_omitted_img.shape)
             brightest_pixels = converter.find_brightest_points(lens_omitted_img)
             #print("brightest_pixels", brightest_pixels.shape)
@@ -1400,7 +1403,8 @@ class LensModelAnalysis:
         print("\nBest parameters:")
         self.print_formatted_values_extra(prob_model_output)
 
-        test_results = TestingResults(self.truth_test, prob_model_output, mode = self.mode)
+        test_results = TestingResults(self.truth_test, prob_model_output, mode = self.mode,
+                                      number_of_im=self.number_of_im)
         if self.simulation:
             if test_results_dict['relative_errors']: test_results.calculate_relative_errors()
         # test_results.plot_loss_evolution(losses)
@@ -1426,7 +1430,8 @@ class LensModelAnalysis:
             print("\nBest parameters (only distance term):")#\n", prob_model_output_dist)
             self.print_formatted_values_extra(prob_model_output_dist)
 
-            test_results_dist = TestingResults(self.truth_test, prob_model_output_dist, mode = self.mode)
+            test_results_dist = TestingResults(self.truth_test, prob_model_output_dist, mode = self.mode,
+                                               number_of_im=self.number_of_im)
             test_results_dist.plot_loss_evolution(losses)
             if self.simulation:
                 test_results_dist.calculate_relative_errors()
@@ -1581,7 +1586,8 @@ class LensModelAnalysis:
         median_hmc_output = self.prob_model.pack_bij.forward([testin])[0]
 
         #print("\nmedian hmc:\n", median_hmc_output)
-        test_results = TestingResults(self.truth_test, median_hmc_output, num_pix = self.num_pix, delta_pix = self.delta_pix, mode = self.mode)
+        test_results = TestingResults(self.truth_test, median_hmc_output, num_pix = self.num_pix, delta_pix = self.delta_pix, mode = self.mode,
+                                      number_of_im=self.number_of_im)
         if self.simulation:
             test_results.calculate_relative_errors()
         test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec)#, _beta_sie_shear)
