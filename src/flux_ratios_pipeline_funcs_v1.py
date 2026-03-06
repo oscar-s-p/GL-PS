@@ -35,7 +35,7 @@ from gigalens.tf.profiles.mass import sis, shear, epl, sie
 import multiprocessing
 import time
 
-__version__ = "0.4.8"
+__version__ = "0.3.1"
 print('flux_ratios_pipeline_funcs.py version:', __version__)
 
 """
@@ -49,82 +49,62 @@ def _rotate(x, y, phi):
 
 @tf.function
 def deriv_epl(x, y, theta_E, gamma, e1, e2, center_x, center_y):
-    phi = tf.atan2(e2, e1) / 2
-    c = tf.clip_by_value(tf.math.sqrt(e1 ** 2 + e2 ** 2), 0, 1)
-    q = (1 - c) / (1 + c) # type: ignore
-    theta_E_conv = theta_E / (tf.math.sqrt((1.0 + q ** 2) / (2.0 * q)))
-    b = theta_E_conv * tf.math.sqrt((1 + q ** 2) / 2)
-    t = gamma - 1
+  phi = tf.atan2(e2, e1) / 2
+  c = tf.clip_by_value(tf.math.sqrt(e1 ** 2 + e2 ** 2), 0, 1)
+  q = (1 - c) / (1 + c) # type: ignore
+  theta_E_conv = theta_E / (tf.math.sqrt((1.0 + q ** 2) / (2.0 * q)))
+  b = theta_E_conv * tf.math.sqrt((1 + q ** 2) / 2)
+  t = gamma - 1
 
-    x, y = x - center_x, y - center_y
-    x, y = _rotate(x, y, phi) # type: ignore
+  x, y = x - center_x, y - center_y
+  x, y = _rotate(x, y, phi) # type: ignore
 
 
-    R = tf.clip_by_value(tf.math.sqrt((q * x) ** 2 + y ** 2), 1e-10, 1e10)
-    angle = tf.math.atan2(y, q * x)
-    f = (1 - q) / (1 + q)
-    # What is this below?
-    Cs, Ss = tf.math.cos(angle), tf.math.sin(angle)
-    Cs2, Ss2 = tf.math.cos(2 * angle), tf.math.sin(2 * angle)
-    niter = tf.stop_gradient(tf.math.log(1e-12) / tf.math.log(tf.reduce_max(f)) + 2)
+  R = tf.clip_by_value(tf.math.sqrt((q * x) ** 2 + y ** 2), 1e-10, 1e10)
+  angle = tf.math.atan2(y, q * x)
+  f = (1 - q) / (1 + q)
+  Cs, Ss = tf.math.cos(angle), tf.math.sin(angle)
+  Cs2, Ss2 = tf.math.cos(2 * angle), tf.math.sin(2 * angle)
 
-    def body(n, p):
-        last_x, last_y, f_x, f_y = p
-        prefac = -f * (2 * n - (2 - t)) / (2 * n + (2 - t))
-        last_x, last_y = prefac * (Cs2 * last_x - Ss2 * last_y), prefac * (
-                Ss2 * last_x + Cs2 * last_y
-        )
-        return n + 1, (last_x, last_y, f_x + last_x, f_y + last_y)
-
-    _, _, fx, fy = tf.while_loop(
-        lambda i, p: i < niter,
-        body, (1.0, (Cs, Ss, Cs, Ss)),
-        maximum_iterations = 500,
-        swap_memory=True,
-    )[1] # type: ignore
-
-    prefac = (2 * b) / (1 + q) * tf.math.pow(b / R, t - 1)
-    fx, fy = fx * prefac, fy * prefac
-    return _rotate(fx, fy, -phi)
-
+  niter = tf.stop_gradient(tf.math.log(1e-12) / tf.math.log(tf.reduce_max(f)) + 2)
 def deriv_sie(x, y, theta_E, e1, e2, center_x, center_y):
-    phi = tf.atan2(e2, e1) / 2
-    c = tf.clip_by_value(tf.math.sqrt(e1 ** 2 + e2 ** 2), 0, 1)
-    q = (1 - c) / (1 + c) # type: ignore
-    theta_E_conv = theta_E / (tf.math.sqrt((1.0 + q ** 2) / (2.0 * q)))
-    b = theta_E_conv * tf.math.sqrt((1 + q ** 2) / 2)
-    t = 2 - 1
-        
-    x, y = x - center_x, y - center_y
-    x, y = _rotate(x, y, phi) # type: ignore
+  phi = tf.atan2(e2, e1) / 2
+  c = tf.clip_by_value(tf.math.sqrt(e1 ** 2 + e2 ** 2), 0, 1)
+  q = (1 - c) / (1 + c) # type: ignore
+  theta_E_conv = theta_E / (tf.math.sqrt((1.0 + q ** 2) / (2.0 * q)))
+  b = theta_E_conv * tf.math.sqrt((1 + q ** 2) / 2)
+  t = 2 - 1
+    
+  x, y = x - center_x, y - center_y
+  x, y = _rotate(x, y, phi) # type: ignore
 
 
-    R = tf.clip_by_value(tf.math.sqrt((q * x) ** 2 + y ** 2), 1e-10, 1e10)
-    angle = tf.math.atan2(y, q * x)
-    f = (1 - q) / (1 + q)
-    Cs, Ss = tf.math.cos(angle), tf.math.sin(angle)
-    Cs2, Ss2 = tf.math.cos(2 * angle), tf.math.sin(2 * angle)
+  R = tf.clip_by_value(tf.math.sqrt((q * x) ** 2 + y ** 2), 1e-10, 1e10)
+  angle = tf.math.atan2(y, q * x)
+  f = (1 - q) / (1 + q)
+  Cs, Ss = tf.math.cos(angle), tf.math.sin(angle)
+  Cs2, Ss2 = tf.math.cos(2 * angle), tf.math.sin(2 * angle)
 
-    niter = tf.stop_gradient(tf.math.log(1e-12) / tf.math.log(tf.reduce_max(f)) + 2)
+  niter = tf.stop_gradient(tf.math.log(1e-12) / tf.math.log(tf.reduce_max(f)) + 2)
 
-    def body(n, p):
-        last_x, last_y, f_x, f_y = p
-        prefac = -f * (2 * n - (2 - t)) / (2 * n + (2 - t))
-        last_x, last_y = prefac * (Cs2 * last_x - Ss2 * last_y), prefac * (
-                Ss2 * last_x + Cs2 * last_y
-        )
-        return n + 1, (last_x, last_y, f_x + last_x, f_y + last_y)
+  def body(n, p):
+      last_x, last_y, f_x, f_y = p
+      prefac = -f * (2 * n - (2 - t)) / (2 * n + (2 - t))
+      last_x, last_y = prefac * (Cs2 * last_x - Ss2 * last_y), prefac * (
+              Ss2 * last_x + Cs2 * last_y
+      )
+      return n + 1, (last_x, last_y, f_x + last_x, f_y + last_y)
 
-    _, _, fx, fy = tf.while_loop(
-        lambda i, p: i < niter,
-        body, (1.0, (Cs, Ss, Cs, Ss)),
-        maximum_iterations = 500,
-        swap_memory=True,
-    )[1] # type: ignore
+  _, _, fx, fy = tf.while_loop(
+      lambda i, p: i < niter,
+      body, (1.0, (Cs, Ss, Cs, Ss)),
+      maximum_iterations = 500,
+      swap_memory=True,
+  )[1] # type: ignore
 
-    prefac = (2 * b) / (1 + q) * tf.math.pow(b / R, t - 1)
-    fx, fy = fx * prefac, fy * prefac
-    return _rotate(fx, fy, -phi)
+  prefac = (2 * b) / (1 + q) * tf.math.pow(b / R, t - 1)
+  fx, fy = fx * prefac, fy * prefac
+  return _rotate(fx, fy, -phi)
 
 @tf.function
 def deriv_shear(x, y, gamma1, gamma2):
@@ -132,56 +112,26 @@ def deriv_shear(x, y, gamma1, gamma2):
 
 ##########################################################
 @tf.function
-def _deriv_epl_shear(x, y, lens_params):
-  f_xi1, f_yi1 = deriv_epl(x, y, **lens_params[0][0])   # type: ignore
+def _deriv_sie_shear(x, y, lens_params):
+  f_xi1, f_yi1 = deriv_sie(x, y, **lens_params[0][0])   # type: ignore
   f_xi2, f_yi2 = deriv_shear(x, y, **lens_params[0][1]) # type: ignore
   f_xi, f_yi = f_xi1 + f_xi2, f_yi1 + f_yi2
   return f_xi,f_yi
-##########################################################
-@tf.function
-def _deriv_sie_shear(x, y, lens_params):
-  f_xi1, f_yi1 = deriv_sie(x, y, **lens_params[0][0])   # type: ignore  # SIE
-  # SIS: use deriv_sie with e1=0, e2=0 for uniform tracing
-  sis_params = dict(**lens_params[0][1])
-  sis_params['e1'] = tf.zeros_like(sis_params['theta_E'])
-  sis_params['e2'] = tf.zeros_like(sis_params['theta_E'])
-  f_xi2, f_yi2 = deriv_sie(x, y, **sis_params)           # type: ignore  # SIS
-  f_xi3, f_yi3 = deriv_shear(x, y, **lens_params[0][2])  # type: ignore  # Shear
-  f_xi, f_yi = f_xi1 + f_xi2 + f_xi3, f_yi1 + f_yi2 + f_yi3
-  return f_xi,f_yi
-#########################################################
-@tf.function
-def _beta_epl_shear(x, y, lens_params):
-
-    f_xi, f_yi = deriv_epl(x, y, **lens_params[0][0])     #type: ignore
-    beta_x, beta_y = x - f_xi, y - f_yi
-
-    f_xi, f_yi = deriv_shear(x, y, **lens_params[0][1])   # type: ignore
-    beta_x, beta_y = beta_x - f_xi, beta_y - f_yi
-
-    return beta_x, beta_y
 #########################################################
 
 @tf.function
 def _beta_sie_shear(x, y, lens_params):
 
- f_xi, f_yi = deriv_sie(x, y, **lens_params[0][0])     # type: ignore  # SIE
+ f_xi, f_yi = deriv_sie(x, y, **lens_params[0][0])     # type: ignore
  beta_x, beta_y = x - f_xi, y - f_yi
 
- # SIS: use deriv_sie with e1=0, e2=0 for uniform tracing
- sis_params = dict(**lens_params[0][1])
- sis_params['e1'] = tf.zeros_like(sis_params['theta_E'])
- sis_params['e2'] = tf.zeros_like(sis_params['theta_E'])
- f_xi, f_yi = deriv_sie(x, y, **sis_params)             # type: ignore  # SIS
- beta_x, beta_y = beta_x - f_xi, beta_y - f_yi
-
- f_xi, f_yi = deriv_shear(x, y, **lens_params[0][2])    # type: ignore  # Shear
+ f_xi, f_yi = deriv_shear(x, y, **lens_params[0][1])   # type: ignore
  beta_x, beta_y = beta_x - f_xi, beta_y - f_yi
 
  return beta_x, beta_y
 
 @tf.function
-def _hessian_differential_cross(x, y, kwargs, diff=0.0001, mode = 'sie'):
+def _hessian_differential_cross(x, y, kwargs, diff=0.0001):
         """
         computes the numerical differentials over a finite range for f_xx, f_yy, f_xy from f_x and f_y
         The differentials are computed along the cross centered at (x, y).
@@ -198,21 +148,12 @@ def _hessian_differential_cross(x, y, kwargs, diff=0.0001, mode = 'sie'):
 
         # alpha_ra_dx_, alpha_dec_dx_ = _beta_EPL_shear(x - diff/2, y, kwargs)
         # alpha_ra_dy_, alpha_dec_dy_ = _beta_EPL_shear(x, y - diff/2, kwargs)
-        if mode == 'sie':
-            alpha_ra_dx, alpha_dec_dx = _deriv_sie_shear(x + diff/2, y, kwargs) # type: ignore
-            alpha_ra_dy, alpha_dec_dy = _deriv_sie_shear(x, y + diff/2, kwargs) # type: ignore
 
-            alpha_ra_dx_, alpha_dec_dx_ = _deriv_sie_shear(x - diff/2, y, kwargs) # type: ignore
-            alpha_ra_dy_, alpha_dec_dy_ = _deriv_sie_shear(x, y - diff/2, kwargs) # type: ignore
-        elif mode == 'epl':
-            alpha_ra_dx, alpha_dec_dx = _deriv_epl_shear(x + diff/2, y, kwargs) # type: ignore
-            alpha_ra_dy, alpha_dec_dy = _deriv_epl_shear(x, y + diff/2, kwargs) # type: ignore
+        alpha_ra_dx, alpha_dec_dx = _deriv_sie_shear(x + diff/2, y, kwargs) # type: ignore
+        alpha_ra_dy, alpha_dec_dy = _deriv_sie_shear(x, y + diff/2, kwargs) # type: ignore
 
-            alpha_ra_dx_, alpha_dec_dx_ = _deriv_epl_shear(x - diff/2, y, kwargs) # type: ignore
-            alpha_ra_dy_, alpha_dec_dy_ = _deriv_epl_shear(x, y - diff/2, kwargs) # type: ignore
-        else:
-            print('ERROR: mode has to be "epl" or "sie".')
-            return
+        alpha_ra_dx_, alpha_dec_dx_ = _deriv_sie_shear(x - diff/2, y, kwargs) # type: ignore
+        alpha_ra_dy_, alpha_dec_dy_ = _deriv_sie_shear(x, y - diff/2, kwargs) # type: ignore
 
         dalpha_rara = (alpha_ra_dx - alpha_ra_dx_) / diff
         dalpha_radec = (alpha_ra_dy - alpha_ra_dy_) / diff
@@ -232,7 +173,7 @@ Magnification functions
 
 
 @tf.function
-def _hessian_differential_square(x, y, kwargs, diff=0.00001, mode = 'sie'):
+def _hessian_differential_square(x, y, kwargs, diff=0.00001):
         """
         computes the numerical differentials over a finite range for f_xx, f_yy, f_xy from f_x and f_y
         The differentials are computed on the square around (x, y). This minimizes curl.
@@ -249,22 +190,12 @@ def _hessian_differential_square(x, y, kwargs, diff=0.00001, mode = 'sie'):
 
         # alpha_ra_np, alpha_dec_np = _beta_EPL_shear(x - diff / 2, y + diff / 2, kwargs)
         # alpha_ra_nn, alpha_dec_nn = _beta_EPL_shear(x - diff / 2, y - diff / 2, kwargs)
-        if mode == 'sie':
-            alpha_ra_pp, alpha_dec_pp = _deriv_sie_shear(x + diff/2, y + diff/2, kwargs) # type: ignore
-            alpha_ra_pn, alpha_dec_pn = _deriv_sie_shear(x + diff/2, y - diff/2, kwargs) # type: ignore
 
-            alpha_ra_np, alpha_dec_np = _deriv_sie_shear(x - diff / 2, y + diff / 2, kwargs) # type: ignore
-            alpha_ra_nn, alpha_dec_nn = _deriv_sie_shear(x - diff / 2, y - diff / 2, kwargs) # type: ignore
-        elif mode=='epl':
-            alpha_ra_pp, alpha_dec_pp = _deriv_epl_shear(x + diff/2, y + diff/2, kwargs) # type: ignore
-            alpha_ra_pn, alpha_dec_pn = _deriv_epl_shear(x + diff/2, y - diff/2, kwargs) # type: ignore
+        alpha_ra_pp, alpha_dec_pp = _deriv_sie_shear(x + diff/2, y + diff/2, kwargs) # type: ignore
+        alpha_ra_pn, alpha_dec_pn = _deriv_sie_shear(x + diff/2, y - diff/2, kwargs) # type: ignore
 
-            alpha_ra_np, alpha_dec_np = _deriv_epl_shear(x - diff / 2, y + diff / 2, kwargs) # type: ignore
-            alpha_ra_nn, alpha_dec_nn = _deriv_epl_shear(x - diff / 2, y - diff / 2, kwargs) # type: ignore
-        else:
-            print('ERROR: mode has to be "epl" or "sie".')
-            return
-
+        alpha_ra_np, alpha_dec_np = _deriv_sie_shear(x - diff / 2, y + diff / 2, kwargs) # type: ignore
+        alpha_ra_nn, alpha_dec_nn = _deriv_sie_shear(x - diff / 2, y - diff / 2, kwargs) # type: ignore
 
         f_xx = (alpha_ra_pp - alpha_ra_np + alpha_ra_pn - alpha_ra_nn) / diff / 2
         f_xy = (alpha_ra_pp - alpha_ra_pn + alpha_ra_np - alpha_ra_nn) / diff / 2
@@ -272,9 +203,8 @@ def _hessian_differential_square(x, y, kwargs, diff=0.00001, mode = 'sie'):
         f_yy = (alpha_dec_pp - alpha_dec_pn + alpha_dec_np - alpha_dec_nn) / diff / 2
 
         return f_xx, f_xy, f_yx, f_yy
-
 @tf.function
-def hessian(x, y, kwargs, diff=0.00001, diff_method='square', mode = 'sie'):
+def hessian(x, y, kwargs, diff=0.00001, diff_method='square'):
         """
         hessian matrix
 
@@ -293,14 +223,14 @@ def hessian(x, y, kwargs, diff=0.00001, diff_method='square', mode = 'sie'):
         # if diff is None:
         #     return hessian(x, y, kwargs)
         if diff_method == 'square': #elif
-            return _hessian_differential_square(x, y, kwargs, diff=diff, mode = mode)
+            return _hessian_differential_square(x, y, kwargs, diff=diff)
         elif diff_method == 'cross':
-            return _hessian_differential_cross(x, y, kwargs, diff=diff, mode = mode)
+            return _hessian_differential_cross(x, y, kwargs, diff=diff)
         else:
             raise ValueError('diff_method %s not supported. Chose among "square" or "cross".' % diff_method)
 
 @tf.function
-def magnification(x, y, kwargs, diff=0.0001, diff_method='square', mode = 'sie'):
+def magnification(x, y, kwargs, diff=0.0001, diff_method='square'):
         """
         magnification
         mag = 1/det(A)
@@ -319,12 +249,12 @@ def magnification(x, y, kwargs, diff=0.0001, diff_method='square', mode = 'sie')
         :return: magnification
         """
 
-        f_xx, f_xy, f_yx, f_yy = hessian(x, y, kwargs, diff=diff, diff_method=diff_method, mode = mode) # type: ignore
+        f_xx, f_xy, f_yx, f_yy = hessian(x, y, kwargs, diff=diff, diff_method=diff_method) # type: ignore
         det_A = (1 - f_xx) * (1 - f_yy) - f_xy*f_yx
         return 1/det_A
 
 @tf.function
-def determinant(x, y, kwargs, diff=0.0001, diff_method='square', mode = 'sie'):
+def determinant(x, y, kwargs, diff=0.0001, diff_method='square'):
         """
         magnification
         mag = 1/det(A)
@@ -343,7 +273,7 @@ def determinant(x, y, kwargs, diff=0.0001, diff_method='square', mode = 'sie'):
         :return: magnification
         """
 
-        f_xx, f_xy, f_yx, f_yy = hessian(x, y, kwargs, diff=diff, diff_method=diff_method, mode = mode) # type: ignore
+        f_xx, f_xy, f_yx, f_yy = hessian(x, y, kwargs, diff=diff, diff_method=diff_method) # type: ignore
         det_A = (1 - f_xx) * (1 - f_yy) - f_xy*f_yx
         return det_A
 
@@ -793,8 +723,7 @@ def HMC_nuts(q_z, prob_model_ps, init_eps=0.3, init_l=3, n_hmc=50,
 Prob Model
 """
 class ProbModelPS:
-    def __init__(self, weight_dist, weight_flux, truth, x_arcsec, y_arcsec, prob_model, prior, observed_flux = None, flux_ratios = False, 
-                 mode = 'sie'):
+    def __init__(self, weight_dist, weight_flux, truth, x_arcsec, y_arcsec, prob_model, prior, observed_flux = None, flux_ratios = False,):
         self.observed_flux = tf.expand_dims(observed_flux, 1) if observed_flux is not None else None
         self.flux_ratios = flux_ratios
         self.weight_dist = weight_dist
@@ -806,13 +735,12 @@ class ProbModelPS:
         self.prob_model = prob_model
         self.initial_setup()
         self.n = None
-        self.mode = mode
         #self.mag_sq_truth = None
 
     def initial_setup(self):
         if self.observed_flux is None:
             print("\n-simulation-")
-            mag_sq_truth = tf.square(magnification(self.x, self.y, self.truth, mode = self.mode))
+            mag_sq_truth = tf.square(magnification(self.x, self.y, self.truth))
         else:
             mag_sq_truth = tf.constant(self.observed_flux) # input is already squared
 
@@ -835,13 +763,8 @@ class ProbModelPS:
     @tf.function
     def log_prob(self, params, all = False):
         constrained = self.prob_model.bij.forward(params)
-        if self.mode == 'sie':
-            delens = tf.convert_to_tensor(_beta_sie_shear(self.x, self.y, constrained))
-        elif self.mode =='epl':
-            delens = tf.convert_to_tensor(_beta_epl_shear(self.x, self.y, constrained))
-        else: 
-            print('ERROR: "mode" in ProbModelPS has to be either "sie" or "epl"')
-            return
+
+        delens = tf.convert_to_tensor(_beta_sie_shear(self.x, self.y, constrained))
         shifted_delens = tf.roll(delens, shift=-1, axis=1)
         sq_diffs = tf.square(delens - shifted_delens)
         sum_sq = tf.reduce_sum(sq_diffs, axis=0)
@@ -851,14 +774,14 @@ class ProbModelPS:
         if self.flux_ratios: # flux ratios
             if self.observed_flux is None: # simulations
                 print("\n--------- simulation. comparing flux ratios difference ----------")
-                det_sq = tf.square(determinant(self.x, self.y, constrained, mode = self.mode))
+                det_sq = tf.square(determinant(self.x, self.y, constrained))
                 gi = tf.gather(det_sq, self.i, axis=0)
                 gj = tf.gather(det_sq, self.j, axis=0)
                 loss_terms = tf.square(gj - gi * self.ratios_truth)
                 flux_ratios_loss = tf.reduce_sum(loss_terms, axis=0)
             else:
                 print("\n----- real system. comparing flux ratio difference ----")
-                det_sq = tf.square(determinant(self.x, self.y, constrained, mode = self.mode))
+                det_sq = tf.square(determinant(self.x, self.y, constrained))
                 gi = tf.gather(det_sq, self.i, axis=0)
                 gj = tf.gather(det_sq, self.j, axis=0)
                 loss_terms = tf.square(gj - gi * self.ratios_truth)
@@ -868,7 +791,7 @@ class ProbModelPS:
         else: # magnifications
             if self.observed_flux is None: # simulations
                 print("\n--------- simulation. comparing flux difference ----------")
-                det_sq = tf.square(determinant(self.x, self.y, constrained, mode = self.mode))
+                det_sq = tf.square(determinant(self.x, self.y, constrained))
                 #print("\ndet_sq", det_sq)
                 flux_diff = tf.square(det_sq - 1/self.mag_sq_truth) # type: ignore
                 #print("\nflux_diff", flux_diff)
@@ -876,7 +799,7 @@ class ProbModelPS:
                 #print("\nflux_loss", flux_loss)
             else:
                 print("\n----- real system. comparing flux difference ----")
-                det_sq = tf.square(determinant(self.x, self.y, constrained, mode = self.mode))
+                det_sq = tf.square(determinant(self.x, self.y, constrained))
                 #print("\ndet_sq", det_sq)
                 #print("\nself.observed_flux", self.observed_flux)
 
@@ -899,19 +822,15 @@ class ProbModelPS:
             return -(- dist_loss * self.weight_dist), -(- flux_ratios_loss * self.weight_flux), - self.prior.log_prob(constrained), - self.prob_model.unconstraining_bij.forward_log_det_jacobian(self.prob_model.pack_bij.forward(params))
 
 class ProbModelPS_only_dist:
-    def __init__(self, x_arcsec, y_arcsec, prob_model, mode = 'sie'):
+    def __init__(self, x_arcsec, y_arcsec, prob_model):
         self.x = tf.repeat(x_arcsec[..., tf.newaxis], [1], axis=-1)
         self.y = tf.repeat(y_arcsec[..., tf.newaxis], [1], axis=-1)
         self.prob_model = prob_model
-        self.mode = mode
 
     @tf.function
     def log_prob(self, params):
         reshaped = self.prob_model.pack_bij.forward(params)
-        if self.mode == 'sie':
-            delens = tf.convert_to_tensor(_beta_sie_shear(self.x, self.y, reshaped))
-        elif self.mode == 'epl':
-            delens = tf.convert_to_tensor(_beta_epl_shear(self.x, self.y, reshaped))
+        delens = tf.convert_to_tensor(_beta_sie_shear(self.x, self.y, reshaped))
         shifted_delens = tf.roll(delens, shift=-1, axis=1)
         sq_diffs = tf.square(delens - shifted_delens)
         sum_sq = tf.reduce_sum(sq_diffs, axis=0)
@@ -921,8 +840,7 @@ class ProbModelPS_only_dist:
         return -dist_loss
     
 class ProbModelPSsplit:
-    def __init__(self, weight_dist, weight_flux, truth, x_arcsec, y_arcsec, prob_model, prior,
-                 mode = 'sie'):
+    def __init__(self, weight_dist, weight_flux, truth, x_arcsec, y_arcsec, prob_model, prior,):
         self.weight_dist = weight_dist
         self.weight_flux = weight_flux
         self.truth = truth
@@ -932,10 +850,9 @@ class ProbModelPSsplit:
         self.prob_model = prob_model
         self.initial_setup()
         self.n = None
-        self.mode = mode
 
     def initial_setup(self):
-        mag_sq_truth = tf.square(magnification(self.x, self.y, self.truth, mode = self.mode))
+        mag_sq_truth = tf.square(magnification(self.x, self.y, self.truth))
         ratios = tf.expand_dims(mag_sq_truth, 1) / tf.expand_dims(mag_sq_truth, 0)
         mask = tf.linalg.band_part(tf.ones((4, 4), dtype=tf.bool), 0, -1)
         mask = tf.logical_and(mask, tf.logical_not(tf.linalg.diag(tf.ones(4, dtype=tf.bool))))
@@ -952,18 +869,14 @@ class ProbModelPSsplit:
     def log_prob_split(self, params):
         constrained = self.prob_model.bij.forward(params)
 
-        if self.mode == 'sie':
-            delens = tf.convert_to_tensor(_beta_sie_shear(self.x, self.y, constrained))
-        elif self.mode == 'epl':
-            delens = tf.convert_to_tensor(_beta_epl_shear(self.x, self.y, constrained))
-
+        delens = tf.convert_to_tensor(_beta_sie_shear(self.x, self.y, constrained))
         shifted_delens = tf.roll(delens, shift=-1, axis=1)
         sq_diffs = tf.square(delens - shifted_delens)
         sum_sq = tf.reduce_sum(sq_diffs, axis=0)
         sqrt_sum_sq = tf.sqrt(sum_sq)
         dist_loss = tf.reduce_mean(sqrt_sum_sq, axis=0)
 
-        det_sq = tf.square(determinant(self.x, self.y, constrained, mode = self.mode))
+        det_sq = tf.square(determinant(self.x, self.y, constrained))
         gi = tf.gather(det_sq, self.i, axis=0)
         gj = tf.gather(det_sq, self.j, axis=0)
         loss_terms = tf.square(gj - gi * self.ratios_truth)
@@ -979,9 +892,7 @@ class TestingResults:
                 #  prior,
                 #  lens_prior,
                 #  phys_model,
-                 num_pix = 40, delta_pix = 0.02,
-                 mode = 'sie',
-                 number_of_im = 4):
+                 num_pix = 40, delta_pix = 0.02):
         self.truth = truth
         self.prob_model_output = prob_model_output
         self.recovered_x = None
@@ -990,15 +901,13 @@ class TestingResults:
         self.delta_pix = delta_pix
         self.x_arcsec_recovered = None
         self.y_arcsec_recovered = None
-        self.mode = mode
-        if mode not in ['epl', 'sie']: print('ERROR: "mode" must be in "epl" or "sie".')
-        self.number_of_im = number_of_im
+
         # self.prior = prior
         # self.lens_prior = lens_prior
         # self.phys_model = phys_model
 
 
-    def plot_loss_evolution(self, losses, track_loss_all=False, weights_all = False):
+    def plot_loss_evolution(self, losses, track_loss_all=False):
         losses_np = losses.numpy()
         if type(track_loss_all)!= bool:
             losses_all_np = [track_loss_all[i].numpy() for i in range(4)]
@@ -1031,8 +940,6 @@ class TestingResults:
         axs[1].set_xlabel('step')
         axs[0].set_title('Loss evolution')
         axs[1].set_title('Relative loss evolution')
-        if type(weights_all)!=bool:
-            fig.suptitle('w_d = %.1e | w_f = %.1e'%(weights_all[0], weights_all[1]))
         # axs[0].set_ylabel('loss')
         # axs[1].set_ylabel('Relative losses')
         #plt.legend()
@@ -1062,12 +969,8 @@ class TestingResults:
         print_formatted_dict(relative_errors_list, percentage=True)
         print("\n")
 
-    def display_delensed_positions(self, x_arcsec, y_arcsec):
-                                   #, _beta_sie_shear):
-        if self.mode == 'sie':
-            x_values, y_values = _beta_sie_shear(x_arcsec, y_arcsec, [self.prob_model_output])
-        elif self.mode == 'epl':
-            x_values, y_values = _beta_epl_shear(x_arcsec, y_arcsec, [self.prob_model_output])
+    def display_delensed_positions(self, x_arcsec, y_arcsec, _beta_sie_shear):
+        x_values, y_values = _beta_sie_shear(x_arcsec, y_arcsec, [self.prob_model_output])
         x_values_np = x_values.numpy()
         y_values_np = y_values.numpy()
         self.recovered_x = np.mean(x_values_np)
@@ -1103,7 +1006,7 @@ class TestingResults:
         #####mag_de_truth = tf.square(magnification(self.x, self.y, self.truth))
         #print("\ncon truth:", mag_de_truth)
 
-        mag_sq_truth = tf.expand_dims(mag_sq_truth, 1) if mag_sq_truth is not None else tf.square(magnification(self.x, self.y, self.truth, mode = self.mode))
+        mag_sq_truth = tf.expand_dims(mag_sq_truth, 1) if mag_sq_truth is not None else tf.square(magnification(self.x, self.y, self.truth))
         #print("\nla mag del input", mag_sq_truth)
 
         ratios = tf.expand_dims(mag_sq_truth, 1) / tf.expand_dims(mag_sq_truth, 0)
@@ -1120,7 +1023,7 @@ class TestingResults:
         upper_triangle = tf.logical_and(i < j, tf.ones_like(i, dtype=bool))
         i, j = tf.boolean_mask(i, upper_triangle), tf.boolean_mask(j, upper_triangle)
 
-        det_sq = tf.square(determinant(self.x, self.y, [self.prob_model_output], mode = self.mode))
+        det_sq = tf.square(determinant(self.x, self.y, [self.prob_model_output]))
         gi = tf.gather(det_sq, i, axis=0)
         gj = tf.gather(det_sq, j, axis=0)
         loss_terms = tf.abs(gj - gi * ratios_truth)
@@ -1159,10 +1062,10 @@ class TestingResults:
           print("\nobserved_magnifications:", tf.sqrt(observed_magnifications)/15) #TODO why sqrt(obs_mag)/15?
         x_rec = tf.repeat(self.x_arcsec_recovered[..., tf.newaxis], [1], axis=-1) # type: ignore
         y_rec = tf.repeat(self.y_arcsec_recovered[..., tf.newaxis], [1], axis=-1) # type: ignore
-        predicted_mag_rec = magnification(x_rec, y_rec, [self.prob_model_output], mode = self.mode)
+        predicted_mag_rec = magnification(x_rec, y_rec, [self.prob_model_output])
         print("\nPredicted magnifications (in recovered positions). The ordering may have changed:\n", predicted_mag_rec.numpy()) # type: ignore
 
-        predicted_mag = magnification(self.x, self.y, [self.prob_model_output], mode = self.mode)
+        predicted_mag = magnification(self.x, self.y, [self.prob_model_output])
         print("\nPredicted magnifications (in observed positions):\n", predicted_mag.numpy()) # type: ignore
 
 
@@ -1187,7 +1090,7 @@ class TestingResults:
         print("self.prob_model_output")
         print_formatted_dict(self.prob_model_output, percentage=False)
         lens_omitted_img = lens_sim.simulate([self.prob_model_output,[],[{"center_x": self.recovered_x, "center_y": self.recovered_y, 'Ie': 2815.97}]]) # Omit lens light
-        converter = BrightestPoints(number_of_images = self.number_of_im, num_pixels=self.num_pix, grid_size=50, delta_pix=self.delta_pix, supersample=1)
+        converter = BrightestPoints(number_of_images = 4, num_pixels=self.num_pix, grid_size=50, delta_pix=self.delta_pix, supersample=1)
         plt.imshow(lens_omitted_img, origin = 'lower', norm='log') # type: ignore
         plt.title("Relensed image from recovered parameters and select brightest points")
         #print(lens_omitted_img)
@@ -1215,44 +1118,25 @@ class TestingResults:
 
         # print("\nparams")
         # print_formatted_dict(params, percentage=False)
-        if self.mode == 'sie':
-            kwargs_main_lens_1 = {
-                'theta_E': params[0]['theta_E'].numpy()[0],
-                'e1': params[0]['e1'].numpy()[0],
-                'e2': params[0]['e2'].numpy()[0],
-                'center_x': params[0]['center_x'].numpy()[0],
-                'center_y': params[0]['center_y'].numpy()[0],}
-            kwargs_main_lens_2 = {
-                'theta_E': params[1]['theta_E'].numpy()[0],
-                'center_x': params[1]['center_x'].numpy()[0],
-                'center_y': params[1]['center_y'].numpy()[0],}
-            kwargs_shear = {
-                'gamma1': params[2]['gamma1'].numpy()[0],
-                'gamma2': params[2]['gamma2'].numpy()[0],
-            }
-            kwargs_lens = [kwargs_main_lens_1, kwargs_main_lens_2, kwargs_shear]
-        elif self.mode == 'epl':
-            kwargs_main_lens = {
+
+        kwargs_main_lens = {
             'theta_E': params[0]['theta_E'].numpy()[0],
-            'gamma': params[0]['gamma'].numpy()[0],
+            # 'gamma': params[0]['gamma'].numpy()[0],
             'e1': params[0]['e1'].numpy()[0],
             'e2': params[0]['e2'].numpy()[0],
             'center_x': params[0]['center_x'].numpy()[0],
             'center_y': params[0]['center_y'].numpy()[0],}
-            kwargs_shear = {
+        kwargs_shear = {
             'gamma1': params[1]['gamma1'].numpy()[0],
             'gamma2': params[1]['gamma2'].numpy()[0],
-            }
-            kwargs_lens = [kwargs_main_lens, kwargs_shear]
+        }
+        kwargs_lens = [kwargs_main_lens, kwargs_shear]
         #print("\nkwargs_lens", kwargs_lens)
         print("\nKwargs lens")
         print_formatted_dict(kwargs_lens, percentage=False)
 
         # plotting with Lenstronomy
-        if self.mode == 'sie':
-            lens_model = LensModel(lens_model_list=['SIE', 'SIS', 'SHEAR'])
-        elif self.mode == 'epl':
-            lens_model = LensModel(lens_model_list=['EPL', 'SHEAR'])
+        lens_model = LensModel(lens_model_list=['SIE', 'SHEAR'])
         fig, axes = plt.subplots(figsize=(8, 8))
         extent = [-self.num_pix / 2 * self.delta_pix, self.num_pix / 2 * self.delta_pix, - self.num_pix / 2 * self.delta_pix, self.num_pix / 2 * self.delta_pix]
 
@@ -1300,9 +1184,7 @@ class LensModelAnalysis:
                  #lens_prior, 
                  phys_model,
                  observed_data = None, weight_dist =  1.*1e3, weight_flux = 1.*1e2, simulation = False,
-                 flux_ratios = False,
-                 mode = 'sie',
-                 number_of_im = 4):
+                 flux_ratios = False,):
         
         self.simulation = simulation
         self.delta_pix = delta_pix
@@ -1313,14 +1195,7 @@ class LensModelAnalysis:
         self.prob_model = prob_model
         self.prob_model_uniform = prob_model_uniform
         self.prior = prior
-        self.mode = mode
-        if self.mode == 'sie':
-            self.lens_model = LensModel(lens_model_list=['SIE', 'SIS', 'SHEAR'])
-        elif self.mode == 'epl':
-            self.lens_model = LensModel(lens_model_list=['EPL', 'SHEAR'])
-        else:
-            print('ERROR: "mode" must be "sie" or "epl".')
-        self.number_of_im = number_of_im
+        self.lens_model = LensModel(lens_model_list=['SIE', 'SHEAR'])
         self.best = None
         self.q_z = None
         self.observed_data = observed_data # a list. the first sublist are observed positions, [[x] [y]]; the second are observed magnifications
@@ -1351,7 +1226,7 @@ class LensModelAnalysis:
                 raise ValueError("For simulation mode, lens_sim must be provided.")
             print("\nSimulated image and brightest points:\n")
             lens_omitted_img = lens_sim.simulate([self.truth_test[0], [], self.truth_test[2]])
-            converter = BrightestPoints(number_of_images=self.number_of_im, num_pixels=self.num_pix, grid_size=20, delta_pix=self.delta_pix, supersample=1) # 40
+            converter = BrightestPoints(number_of_images=4, num_pixels=self.num_pix, grid_size=20, delta_pix=self.delta_pix, supersample=1) # 40
             #print("lens_omitted_img", lens_omitted_img.shape)
             brightest_pixels = converter.find_brightest_points(lens_omitted_img)
             #print("brightest_pixels", brightest_pixels.shape)
@@ -1377,8 +1252,7 @@ class LensModelAnalysis:
 
         prob_model_ps = ProbModelPS(weight_dist = self.weight_dist, weight_flux = self.weight_flux, truth = self.truth_test, 
                                     x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model, 
-                                    prior = self.prior, observed_flux = self.observed_flux, flux_ratios = self.flux_ratios,
-                                    mode = self.mode)
+                                    prior = self.prior, observed_flux = self.observed_flux, flux_ratios = self.flux_ratios)
         schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(polynomial_decay_args['initial_learning_rate'], # type: ignore
                                                                     n_steps, 
                                                                     polynomial_decay_args['end_learning_rate'],
@@ -1403,20 +1277,18 @@ class LensModelAnalysis:
         print("\nBest parameters:")
         self.print_formatted_values_extra(prob_model_output)
 
-        test_results = TestingResults(self.truth_test, prob_model_output, mode = self.mode,
-                                      number_of_im=self.number_of_im)
+        test_results = TestingResults(self.truth_test, prob_model_output)
         if self.simulation:
             if test_results_dict['relative_errors']: test_results.calculate_relative_errors()
         # test_results.plot_loss_evolution(losses)
-        if test_results_dict['plot_loss']: test_results.plot_loss_evolution(losses, track_loss_all = losses_all, weights_all = [self.weight_dist, self.weight_flux]) #type: ignore
-        if test_results_dict['delensed_positions']: test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec)#, _beta_sie_shear)
+        if test_results_dict['plot_loss']: test_results.plot_loss_evolution(losses, track_loss_all = losses_all)
+        if test_results_dict['delensed_positions']: test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_sie_shear)
         if test_results_dict['flux_ratio_error']: test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec, self.observed_flux)
 
         # check gamma value when only the distance term is included with no prior
         if uniform_comparison:
             print("\nresults when only the distance term is included in the loss with no prior --------------------------------------------------\n")
-            prob_model_only_dist = ProbModelPS_only_dist(x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model_uniform,
-                                                         mode = self.mode)
+            prob_model_only_dist = ProbModelPS_only_dist(x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model_uniform,)
             schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(polynomial_decay_args['initial_learning_rate'], # type: ignore
                                                                         n_steps, 
                                                                         polynomial_decay_args['end_learning_rate'],
@@ -1430,12 +1302,11 @@ class LensModelAnalysis:
             print("\nBest parameters (only distance term):")#\n", prob_model_output_dist)
             self.print_formatted_values_extra(prob_model_output_dist)
 
-            test_results_dist = TestingResults(self.truth_test, prob_model_output_dist, mode = self.mode,
-                                               number_of_im=self.number_of_im)
+            test_results_dist = TestingResults(self.truth_test, prob_model_output_dist)
             test_results_dist.plot_loss_evolution(losses)
             if self.simulation:
                 test_results_dist.calculate_relative_errors()
-            test_results_dist.display_delensed_positions(self.x_arcsec, self.y_arcsec)#, _beta_sie_shear)
+            test_results_dist.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_sie_shear)
         ### test_results_dist.flux_ratio_error(self.x_arcsec, self.y_arcsec)
         if return_loss:
             return losses, losses_all
@@ -1447,8 +1318,7 @@ class LensModelAnalysis:
                                         'power': 1.0}):
         prob_model_ps = ProbModelPS(weight_dist = self.weight_dist, weight_flux = self.weight_flux, truth = self.truth_test, 
                                     x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model, 
-                                    prior = self.prior, observed_flux = self.observed_flux, flux_ratios = self.flux_ratios,
-                                    mode = self.mode)
+                                    prior = self.prior, observed_flux = self.observed_flux, flux_ratios = self.flux_ratios)
         # TODO: CHECK POSSIBLE ERROR below set not function
         schedule_fn = tf.keras.optimizers.schedules.PolynomialDecay(polynomial_decay_args['initial_learning_rate'], # type: ignore
                                                                     num_steps, 
@@ -1468,54 +1338,31 @@ class LensModelAnalysis:
         if method == "adaptative":
             prob_model_ps = ProbModelPS(weight_dist = self.weight_dist, weight_flux = self.weight_flux, truth = self.truth_test, 
                                         x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model, 
-                                        prior = self.prior, observed_flux = self.observed_flux, flux_ratios = self.flux_ratios, 
-                                        mode = self.mode)
+                                        prior = self.prior, observed_flux = self.observed_flux, flux_ratios = self.flux_ratios)
             samples = HMC(q_z=self.q_z, n_hmc=n_hmc, init_eps=init_eps, init_l=init_l, max_leapfrog_steps=max_leapfrog_steps,
                           num_burnin_steps=num_burnin_steps, num_results=num_results, prob_model_ps = prob_model_ps)
 
         if method == "nuts":
             prob_model_ps = ProbModelPS(weight_dist = self.weight_dist, weight_flux = self.weight_flux, truth = self.truth_test, 
                                         x_arcsec = self.x_arcsec, y_arcsec = self.y_arcsec, prob_model = self.prob_model,
-                                        prior = self.prior, mode = self.mode)
+                                        prior = self.prior)
             samples = HMC_nuts(q_z=self.q_z, n_hmc=n_hmc, init_eps=init_eps, init_l=init_l, max_leapfrog_steps=max_leapfrog_steps, num_burnin_steps=num_burnin_steps, 
                                num_results=num_results, prob_model_ps = prob_model_ps)
 
         print(f"\n----------------method: {method}------------------\n")
-        if self.mode == 'sie':
-            get_samples = lambda x: tf.convert_to_tensor([
-                x[0][0]['theta_E'],
-                x[0][0]['e1'],
-                x[0][0]['e2'],
-                x[0][0]['center_x'],
-                x[0][0]['center_y'],
-                x[0][1]['theta_E'],
-                x[0][1]['center_x'],
-                x[0][1]['center_y'],
-                x[0][2]['gamma1'],
-                x[0][2]['gamma2'],
-            ])
-            parameter_names = ['theta_E_1', 'e1_1', 'e2_1', 'center_x_1', 'center_y_1',
-                           'theta_E_2', 'center_x_2', 'center_y_2',
-                           'gamma1', 'gamma2']
-            param_labels = [r'$\theta_{E,1}$', r'$\epsilon_{1,1}$', r'$\epsilon_{2,1}$', r'$x_1$', r'$y_1$',
-                                    r'$\theta_{E,2}$', r'$x_2$', r'$y_2$',
-                                    r'$\gamma_{1,ext}$', r'$\gamma_{2,ext}$']
-        elif self.mode == 'epl':
-            get_samples = lambda x: tf.convert_to_tensor([
-                x[0][0]['theta_E'],
-                x[0][0]['gamma'],
-                x[0][0]['e1'],
-                x[0][0]['e2'],
-                x[0][0]['center_x'],
-                x[0][0]['center_y'],
-                x[0][1]['gamma1'],
-                x[0][1]['gamma2'],
-            ])
-            parameter_names = ['theta_E', 'gamma', 'e1', 'e2', 'center_x', 'center_y', 'gamma1', 'gamma2']
-            param_labels = [r'$\theta_E$', r'$\gamma$', r'$\epsilon_1$', r'$\epsilon_2$', r'$x$', r'$y$', 
-                                    r'$\gamma_{1,ext}$', r'$\gamma_{2,ext}$']
+        get_samples = lambda x: tf.convert_to_tensor([
+            x[0][0]['theta_E'],
+            # x[0][0]['gamma'],
+            x[0][0]['e1'],
+            x[0][0]['e2'],
+            x[0][0]['center_x'],
+            x[0][0]['center_y'],
+            x[0][1]['gamma1'],
+            x[0][1]['gamma2'],
+        ])
         physical_samples = get_samples(self.prob_model.bij.forward(samples)).numpy() # type: ignore
 
+        parameter_names = ['theta_E', 'e1', 'e2', 'center_x', 'center_y', 'gamma1', 'gamma2']
         n_params = len(parameter_names)
         n_cols = 2
         n_rows = (n_params + n_cols - 1) // n_cols
@@ -1536,10 +1383,11 @@ class LensModelAnalysis:
         self.print_formatted_values(self.prob_model.pack_bij.forward([ESS])[0], "ess")
 
         markers = get_samples(self.truth_test)
-        plt.figure(figsize=(18, 18))
-        fig = corner.corner(physical_samples.reshape((n_params,-1)).T,
+        plt.figure(figsize=(14, 14))
+        fig = corner.corner(physical_samples.reshape((7,-1)).T,
                             show_titles=True, title_fmt='.3f',
-                            labels=param_labels,fig=plt.gcf());
+                            labels=[r'$\theta_E$', r'$\epsilon_1$', r'$\epsilon_2$', r'$x$', r'$y$', 
+                                    r'$\gamma_{1,ext}$', r'$\gamma_{2,ext}$'],fig=plt.gcf());
         plt.show()
 
         mean_values = {}
@@ -1560,37 +1408,31 @@ class LensModelAnalysis:
             #print(f"{param_name}: mean = {mean_values[param_name]:.3f}, median = {median_values[param_name]:.3f}")
             print(f"{param_name:<10} | {mean_values[param_name]:>8.4f} | {median_values[param_name]:>8.4f}")
 
-        if self.mode == 'sie':
-            dict1_keys = {'theta_E', 'e1', 'e2', 'center_x', 'center_y'}  # SIE
-            dict2_keys = {'theta_E', 'center_x', 'center_y'}               # SIS (no e1, e2)
-            dict3_keys = {'gamma1', 'gamma2'}
-            # Map parameter names back to the base key names expected by the lens model dicts
-            # SIE parameters (strip _1 suffix)
-            list_of_dicts1 = [{key: tf.convert_to_tensor([median_values[key + '_1']]) for key in dict1_keys}]
-            # SIS parameters (strip _2 suffix)
-            list_of_dicts2 = [{key: tf.convert_to_tensor([median_values[key + '_2']]) for key in dict2_keys}]
-            # Shear parameters (no suffix)
-            list_of_dicts3 = [{key: tf.convert_to_tensor([median_values[key]]) for key in dict3_keys}]
-            combined = [list_of_dicts1[0], list_of_dicts2[0], list_of_dicts3[0]]
-        if self.mode == 'epl':
-            dict1_keys = {'theta_E', 'gamma', 'e1', 'e2', 'center_x', 'center_y'}
-            dict2_keys = {'gamma1', 'gamma2'}
-            list_of_dicts1 = [{key: tf.convert_to_tensor([median_values[key]]) for key in dict1_keys}]
-            list_of_dicts2 = [{key: tf.convert_to_tensor([median_values[key]]) for key in dict2_keys}]
-            combined = [list_of_dicts1[0], list_of_dicts2[0]]
 
+        dict1_keys = {'theta_E', 'e1', 'e2', 'center_x', 'center_y'}
+        dict2_keys = {'gamma1', 'gamma2'}
 
+    # Splitting the dictionary and creating lists of dictionaries
+        list_of_dicts1 = [{key: tf.convert_to_tensor([median_values[key]]) for key in dict1_keys}]
+        list_of_dicts2 = [{key: tf.convert_to_tensor([median_values[key]]) for key in dict2_keys}]
+        #print("list of dicts 1", list_of_dicts1)
+        #print("list of dicts 2", list_of_dicts2)
+        combined = [list_of_dicts1[0], list_of_dicts2[0]]
+
+        #print("combined", combined)
+        #median_values_list = tf.reshape(combined, [8])
+
+        #print("median values hmc format", combined)
         testin = self.prob_model.pack_bij.inverse([combined])
-        testin = tf.reshape(testin, [n_params])
+        testin = tf.reshape(testin, [7])
 
         median_hmc_output = self.prob_model.pack_bij.forward([testin])[0]
 
         #print("\nmedian hmc:\n", median_hmc_output)
-        test_results = TestingResults(self.truth_test, median_hmc_output, num_pix = self.num_pix, delta_pix = self.delta_pix, mode = self.mode,
-                                      number_of_im=self.number_of_im)
+        test_results = TestingResults(self.truth_test, median_hmc_output, num_pix = self.num_pix, delta_pix = self.delta_pix)
         if self.simulation:
             test_results.calculate_relative_errors()
-        test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec)#, _beta_sie_shear)
+        test_results.display_delensed_positions(self.x_arcsec, self.y_arcsec, _beta_sie_shear)
         ###test_results.flux_ratio_error(self.x_arcsec, self.y_arcsec)
         test_results.relens(self.x_arcsec, self.y_arcsec,
                             self.prior, 

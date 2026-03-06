@@ -5,7 +5,7 @@ from gigalens.model import PhysicalModel
 from gigalens.simulator import SimulatorConfig
 from gigalens.jax.simulator import LensSimulator
 from gigalens.jax.profiles.light import sersic #, shapelets
-from gigalens.jax.profiles.mass import epl, shear
+from gigalens.jax.profiles.mass import epl,sie, shear
 # from gigalens.tf.simulator import LensSimulator
 # from gigalens.tf.profiles.light import sersic, shapelets
 # from gigalens.tf.profiles.mass import epl, shear
@@ -83,7 +83,7 @@ def image_sim(theta_E, q, phi,lens_z,lra,ldec,source_z, sra,sdec,lens_light, gam
     '''
     
     '''
-    kwargs_model = {'lens_model_list': ['EPL', 'SHEAR'], # list of lens models to be used
+    kwargs_model = {'lens_model_list': ['SIE', 'SHEAR'], # list of lens models to be used
                     'lens_redshift_list': [lens_z, lens_z],
                     'z_source': source_z,
                     'lens_light_model_list': ['SERSIC_ELLIPSE'],  # list of unlensed light models to be used
@@ -95,7 +95,7 @@ def image_sim(theta_E, q, phi,lens_z,lra,ldec,source_z, sra,sdec,lens_light, gam
     
     # lens model parameters
     kwargs_lens = [
-    {'theta_E': theta_E, 'center_x': lra, 'center_y': ldec, 'e1':e1 , 'e2':e2, 'gamma':gamma},
+    {'theta_E': theta_E, 'center_x': lra, 'center_y': ldec, 'e1':e1 , 'e2':e2},
     {'gamma1': gamma_1, 'gamma2': gamma_2}
     ]
 
@@ -164,7 +164,6 @@ def image_sim(theta_E, q, phi,lens_z,lra,ldec,source_z, sra,sdec,lens_light, gam
 
     params = ([
     {'theta_E': theta_E, 
-     'gamma': gamma, 
      'e1': e1, 
      'e2': e2, 
      'center_x': lra+0.031, 
@@ -220,7 +219,7 @@ def image_sim(theta_E, q, phi,lens_z,lra,ldec,source_z, sra,sdec,lens_light, gam
     # psf_path = base_path / 'gigalens' / 'src' / 'gigalens' / 'assets' / 'psf.npy'
     psf_path = '/Users/oscar/LB/grav_lens/gigalens/src/gigalens/assets/psf.npy'
     kernel = np.load(psf_path).astype(np.float32)
-    phys_model = PhysicalModel([epl.EPL(50), shear.Shear()], [sersic.SersicEllipse(use_lstsq=False)], [sersic.SersicEllipse(use_lstsq=False)])
+    phys_model = PhysicalModel([sie.SIE(), shear.Shear()], [sersic.SersicEllipse(use_lstsq=False)], [sersic.SersicEllipse(use_lstsq=False)])
     sim_config = SimulatorConfig(delta_pix=deltaPix, num_pix=numpix, supersample=1, kernel=kernel)
     lens_sim = LensSimulator(phys_model, sim_config, bs=1)
 
@@ -352,7 +351,7 @@ sdec_init = 0.1
 lens_light = True
 source_light = True
 ps_light = True
-gamma_init = 2.0
+# gamma_init = 2.0
 #gamma_1_init = 0
 #gamma_2_init = 0.05
 gamma_ext_init = 0.05
@@ -456,7 +455,7 @@ ax1.set_ylabel('DEC [arcsec]')
 ax_theta_E = plt.axes([0.25, 0.4, 0.65, 0.03])
 ax_q = plt.axes([0.25, 0.35, 0.65, 0.03])
 ax_phi = plt.axes([0.25, 0.3, 0.65, 0.03])
-ax_gamma = plt.axes([0.25, 0.25, 0.65, 0.03])
+# ax_gamma = plt.axes([0.25, 0.25, 0.65, 0.03])
 ax_gamma_ext = plt.axes([0.25, 0.2, 0.65, 0.03])
 ax_psi_ext = plt.axes([0.25, 0.15, 0.65, 0.03])
 ax_sra = plt.axes([0.25, 0.1, 0.65, 0.03])
@@ -465,7 +464,7 @@ ax_sdec = plt.axes([0.25, 0.05, 0.65, 0.03])
 slider_theta_E = Slider(ax_theta_E, 'Einstein Radius (θ_E)', 0.5, 3.0, valinit=theta_E_init)
 slider_q = Slider(ax_q, 'Axis Ratio (q)', 0.5, 1.0, valinit=q_init)
 slider_phi = Slider(ax_phi, 'Lens Angle (φ)', -np.pi, np.pi, valinit=phi_init)
-slider_gamma = Slider(ax_gamma, 'Gamma', 1.5, 3.0, valinit=gamma_init)
+# slider_gamma = Slider(ax_gamma, 'Gamma', 1.5, 3.0, valinit=gamma_init)
 slider_gamma_ext = Slider(ax_gamma_ext, 'Shear Strength (γext)', 0.0, 0.3, valinit=gamma_ext_init)
 slider_psi_ext = Slider(ax_psi_ext, 'Shear Angle (ψ)', -np.pi, np.pi, valinit=psi_ext_init)
 slider_sra = Slider(ax_sra, 'Source RA', -2.0, 2.0, valinit=sra_init)
@@ -480,13 +479,12 @@ def update(val):
     phi = slider_phi.val
     sra = slider_sra.val
     sdec = slider_sdec.val
-    gamma = slider_gamma.val
     #gamma_1 = slider_gamma_1.val
     #gamma_2 = slider_gamma_2.val
     gamma_ext = slider_gamma_ext.val
     psi_ext = slider_psi_ext.val
     new_img, new_kwargs_lens, new_lens_model, new_coords, new_mag, lensstron_img_new = image_sim(
-        theta_E, q, phi, lens_z, lra, ldec, source_z, sra, sdec, lens_light, gamma, gamma_ext, psi_ext, source_light, ps_light
+        theta_E, q, phi, lens_z, lra, ldec, source_z, sra, sdec, lens_light, gamma_ext, psi_ext, source_light, ps_light
     )
     
     # update text
@@ -577,7 +575,7 @@ slider_q.on_changed(update)
 slider_phi.on_changed(update)
 slider_sra.on_changed(update)
 slider_sdec.on_changed(update)
-slider_gamma.on_changed(update)
+# slider_gamma.on_changed(update)
 slider_gamma_ext.on_changed(update)
 slider_psi_ext.on_changed(update)
 
