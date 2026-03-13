@@ -7,6 +7,10 @@ __pycache__/
 
 .DS_Store
 
+# Claude
+CLAUDE.md
+memory
+
 # FITS images
 *.fits
 !modeling/2025wny/data/nirc2_wny_full.fits
