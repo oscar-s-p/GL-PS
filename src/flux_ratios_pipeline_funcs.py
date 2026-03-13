@@ -595,7 +595,6 @@ def MAP(optimizer, prob_model_ps, prob_model, prob_model_uniform, posterior_vers
       trial = tf.Variable(prob_model_uniform.pack_bij.inverse(start))
 
 
-
     @tf.function
     def train_step():
         with tf.GradientTape() as tape:
